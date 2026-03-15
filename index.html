@@ -1,0 +1,1624 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zivex — современный сайт с микроанимациями и чат-ботом</title>
+    <!-- jspdf и html2canvas (для КП) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Шрифт Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.3s, color 0.3s;
+            background-color: #f8fafc;
+            color: #1e293b;
+            line-height: 1.4;
+            font-size: 14px;
+        }
+        body.dark-theme {
+            background-color: #0f172a;
+            color: #e2e8f0;
+        }
+        :root {
+            --primary: #20B2AA;
+            --primary-dark: #1a8f8a;
+            --primary-light: #b0e5e0;
+            --primary-very-light: #e0f2f1;
+            --bg-sidebar: #ffffff;
+            --bg-card: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-light: #e2e8f0;
+            --shadow-card: 0 10px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.02);
+            --shadow-hover: 0 20px 30px -10px rgba(32,178,170,0.2);
+            --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            --toast-success: #10b981;
+            --toast-error: #ef4444;
+            --toast-info: #3b82f6;
+        }
+        body.dark-theme {
+            --bg-sidebar: #1e293b;
+            --bg-card: #1e293b;
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --border-light: #334155;
+            --shadow-card: 0 10px 25px -5px rgba(0,0,0,0.5);
+        }
+        .app { display: flex; min-height: 100vh; max-width: 1600px; margin: 0 auto; }
+        .sidebar {
+            width: 260px;
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border-light);
+            border-radius: 0 30px 30px 0;
+            padding: 28px 12px 20px 16px;
+            display: flex;
+            flex-direction: column;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+            transition: background-color 0.3s;
+        }
+        .sidebar-logo {
+            padding-bottom: 30px;
+            border-bottom: 2px dashed var(--primary-light);
+            margin-bottom: 20px;
+        }
+        .sidebar-logo img {
+            height: 80px;
+            width: auto;
+            filter: drop-shadow(0 2px 4px rgba(32,178,170,0.2));
+            animation: pulse 2s infinite ease-in-out; /* постоянная пульсация */
+        }
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.02); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        .sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+        .sidebar-item {
+            padding: 10px 14px;
+            border-radius: 16px;
+            color: var(--text-muted);
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            font-size: 13px;
+        }
+        .sidebar-item i { width: 22px; font-size: 16px; color: var(--text-muted); transition: transform 0.2s; }
+        .sidebar-item:hover {
+            background: var(--primary-very-light);
+            color: var(--primary-dark);
+            transform: translateX(4px);
+        }
+        .sidebar-item:hover i {
+            color: var(--primary);
+            transform: scale(1.1);
+        }
+        .sidebar-item.active {
+            background: linear-gradient(90deg, var(--primary-very-light) 0%, transparent 90%);
+            color: var(--primary-dark);
+            font-weight: 700;
+            border-left: 4px solid var(--primary);
+        }
+        .sidebar-item.active i { color: var(--primary); }
+        .sidebar-dropdown { margin-left: 40px; display: none; flex-direction: column; gap: 4px; margin-top: 4px; }
+        .sidebar-dropdown.show { display: flex; }
+        .sidebar-dropdown-item {
+            padding: 8px 14px;
+            border-radius: 12px;
+            font-size: 12px;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .sidebar-dropdown-item:hover { background: #f1f5f9; color: var(--primary); transform: translateX(4px); }
+        body.dark-theme .sidebar-dropdown-item:hover { background: #2d3a4f; }
+        .sidebar-kp {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 30px;
+            padding: 12px 16px;
+            font-weight: 700;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: var(--transition);
+            margin: 16px 8px 0 8px;
+            box-shadow: 0 6px 14px rgba(32,178,170,0.3);
+        }
+        .sidebar-kp:hover { background: var(--primary-dark); transform: translateY(-2px); box-shadow: 0 10px 20px rgba(32,178,170,0.4); }
+        .main-content { flex: 1; padding: 24px 32px; max-width: calc(100% - 260px); }
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 20px;
+            background: rgba(255,255,255,0.7);
+            backdrop-filter: blur(10px);
+            padding: 8px 24px;
+            border-radius: 60px;
+            border: 1px solid rgba(255,255,255,0.8);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+            margin-bottom: 25px;
+        }
+        body.dark-theme .top-bar { background: rgba(30,41,59,0.7); border-color: #334155; }
+        .top-bar-item { display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 13px; white-space: nowrap; }
+        .top-bar-item i { color: var(--primary); font-size: 15px; transition: transform 0.2s; }
+        .top-bar-item:hover i { transform: rotate(10deg); }
+        .theme-switch {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            background: var(--primary-very-light);
+            padding: 4px 12px;
+            border-radius: 40px;
+            border: 1px solid var(--border-light);
+            transition: var(--transition);
+        }
+        .theme-switch:hover { background: var(--primary-light); }
+        .cart-icon {
+            background: var(--primary);
+            color: white;
+            padding: 6px 18px;
+            border-radius: 40px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            border: none;
+            transition: var(--transition);
+            font-size: 13px;
+        }
+        .cart-icon:hover { background: var(--primary-dark); transform: scale(1.02); }
+        .cart-count { background: white; color: var(--primary); font-weight: 800; padding: 2px 8px; border-radius: 30px; font-size: 11px; transition: transform 0.2s; }
+        .cart-icon:hover .cart-count { transform: scale(1.1); }
+        .search-wrapper { margin-bottom: 25px; position: relative; }
+        .search-container {
+            display: flex;
+            align-items: center;
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: 50px;
+            padding: 0 18px;
+            transition: var(--transition);
+            box-shadow: var(--shadow-card);
+        }
+        .search-container:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(32,178,170,0.2); }
+        .search-input {
+            flex: 1;
+            padding: 12px 0;
+            border: none;
+            background: transparent;
+            font-size: 14px;
+            outline: none;
+            color: var(--text-main);
+        }
+        .search-clear { background: transparent; border: none; color: var(--text-muted); font-size: 18px; padding: 0 8px; cursor: pointer; display: none; }
+        .search-suggestions {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            right: 0;
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: 24px;
+            max-height: 350px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 20px 30px -10px rgba(0,0,0,0.15);
+            display: none;
+        }
+        .search-suggestions.show { display: block; }
+        .suggestion-item {
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.15s;
+        }
+        .suggestion-item:hover { background: #f1f5f9; }
+        body.dark-theme .suggestion-item:hover { background: #2d3a4f; }
+        .page { display: none; background: var(--bg-card); border-radius: 30px; padding: 28px; border: 1px solid var(--border-light); box-shadow: var(--shadow-card); opacity: 1; transition: opacity 0.2s ease; }
+        .page.active { display: block; animation: fadeIn 0.2s; }
+        .page.fade-out { opacity: 0; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .home-tabs { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--border-light); padding-bottom: 10px; }
+        .home-tab {
+            padding: 6px 18px;
+            background: #f1f5f9;
+            border-radius: 30px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        body.dark-theme .home-tab { background: #1e293b; }
+        .home-tab.active { background: var(--primary); color: white; }
+        .home-tab:hover:not(.active) { background: #e2e8f0; }
+        .news-content { display: flex; gap: 30px; align-items: center; }
+        .news-image img { max-width: 220px; border-radius: 20px; border: 2px solid var(--primary-light); transition: transform 0.3s; }
+        .news-image img:hover { transform: scale(1.02); }
+        .products-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-top: 20px; }
+        .product-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: 24px;
+            overflow: hidden;
+            transition: var(--transition);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            box-shadow: var(--shadow-card);
+        }
+        .product-card:hover {
+            transform: translateY(-6px);
+            border-color: var(--primary);
+            box-shadow: var(--shadow-hover);
+        }
+        .product-image { height: 110px; background: linear-gradient(145deg, var(--primary-very-light), #ffffff); display: flex; align-items: center; justify-content: center; transition: all 0.3s; }
+        .product-card:hover .product-image { background: linear-gradient(145deg, var(--primary-light), #ffffff); }
+        .product-image img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s; }
+        .product-card:hover .product-image img { transform: scale(1.05); }
+        .product-image i { font-size: 32px; color: var(--primary); transition: transform 0.3s; }
+        .product-card:hover .product-image i { transform: scale(1.1); }
+        .product-info { padding: 14px 12px 12px; }
+        .product-info h3 { font-size: 15px; font-weight: 700; margin-bottom: 4px; color: var(--text-main); }
+        .product-article { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
+        .product-details { font-size: 12px; color: var(--text-muted); line-height: 1.5; max-height: 4.5em; overflow-y: auto; margin-bottom: 8px; padding-right: 4px; }
+        .product-price { font-size: 18px; font-weight: 800; color: var(--primary); margin: 8px 0 10px; transition: color 0.2s; }
+        .product-card:hover .product-price { color: var(--primary-dark); }
+        .order-block { display: flex; align-items: center; gap: 6px; }
+        .quantity-selector { display: flex; border: 1px solid var(--border-light); border-radius: 30px; overflow: hidden; background: var(--bg-card); }
+        .quantity-btn { background: transparent; border: none; width: 28px; height: 28px; font-weight: 700; cursor: pointer; color: var(--text-main); transition: background 0.2s; }
+        .quantity-btn:hover { background: var(--primary); color: white; }
+        .quantity-input { width: 38px; text-align: center; border: none; border-left: 1px solid var(--border-light); border-right: 1px solid var(--border-light); font-size: 12px; font-weight: 600; background: transparent; color: var(--text-main); }
+        .btn-order { background: var(--primary); color: white; border: none; padding: 6px 12px; border-radius: 30px; font-weight: 600; font-size: 12px; cursor: pointer; flex: 1; transition: var(--transition); }
+        .btn-order:hover { background: var(--primary-dark); transform: scale(1.02); }
+
+        /* Матрица цен */
+        .matrix-section {
+            background: var(--bg-card);
+            border-radius: 24px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-light);
+        }
+        .matrix-container {
+            overflow-x: auto;
+            max-width: 100%;
+            border-radius: 16px;
+        }
+        .price-matrix {
+            font-size: 11px;
+            border-collapse: collapse;
+            min-width: 2400px;
+        }
+        .price-matrix th,
+        .price-matrix td {
+            padding: 4px 6px;
+            border: 1px solid var(--border-light);
+            text-align: center;
+            white-space: nowrap;
+        }
+        .price-matrix td:first-child {
+            background: var(--primary);
+            color: white;
+            font-weight: 700;
+            position: sticky;
+            left: 0;
+            z-index: 20;
+            width: 70px;
+        }
+        .price-matrix th {
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .price-matrix th:first-child { z-index: 25; }
+        body.dark-theme .price-matrix td:first-child { background: var(--primary-dark); }
+        .price-matrix td:hover { background: var(--primary-very-light); }
+        .price-matrix td.selected {
+            background: var(--primary) !important;
+            color: white;
+            font-weight: 700;
+        }
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.5);
+            transform: scale(0);
+            animation: ripple-animation 0.6s linear;
+            pointer-events: none;
+        }
+        @keyframes ripple-animation { to { transform: scale(4); opacity: 0; } }
+
+        .type-color-section { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; }
+        .select-block { background: var(--bg-card); border-radius: 16px; padding: 15px; }
+        .select-block label { display: block; margin-bottom: 6px; font-weight: 600; }
+        .select-block select { width: 100%; padding: 8px; border-radius: 30px; border: 1px solid var(--border-light); background: var(--bg-card); color: var(--text-main); }
+        .price-result { background: var(--bg-card); border-left: 5px solid var(--primary); padding: 15px; border-radius: 16px; margin: 20px 0; }
+        .price-row { display: flex; justify-content: space-between; padding: 5px 0; }
+        .price-row.total { font-size: 18px; font-weight: 700; }
+
+        .catalog-note {
+            background: var(--primary-very-light);
+            border-left: 5px solid var(--primary);
+            padding: 12px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: var(--text-main);
+        }
+        body.dark-theme .catalog-note { background: #1e293b; color: #cbd5e1; }
+
+        .cart-dropdown {
+            position: absolute; top: 90px; right: 32px; width: 440px; max-height: 70vh; overflow-y: auto;
+            background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 30px; padding: 22px;
+            display: none; z-index: 200; box-shadow: 0 30px 50px -20px rgba(0,0,0,0.3);
+            backdrop-filter: blur(10px); background: rgba(255,255,255,0.95);
+        }
+        body.dark-theme .cart-dropdown { background: rgba(30,41,59,0.95); }
+        .cart-dropdown.show { display: block; }
+        .cart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .cart-header h3 { font-size: 18px; color: var(--primary); font-weight: 700; }
+        .cart-items { max-height: 350px; overflow-y: auto; margin-bottom: 15px; }
+        .cart-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border-light); font-size: 13px; }
+        .cart-item-img { width: 40px; height: 40px; background: var(--primary-very-light); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--primary); font-size: 18px; }
+        .cart-item-info { flex: 1; }
+        .cart-item-title { font-weight: 700; color: var(--text-main); }
+        .cart-item-desc { font-size: 11px; color: var(--text-muted); }
+        .cart-item-price { font-weight: 700; color: var(--primary); }
+        .cart-item-actions button { background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 16px; transition: color 0.2s; }
+        .cart-item-actions button:hover { color: var(--primary); }
+        .cart-total { display: flex; justify-content: space-between; align-items: center; padding-top: 15px; border-top: 2px solid var(--primary-light); font-weight: 700; font-size: 16px; }
+
+        .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
+        .toast {
+            min-width: 250px; max-width: 350px; padding: 12px 16px; border-radius: 30px; background: var(--bg-card);
+            color: var(--text-main); box-shadow: 0 10px 30px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 12px;
+            font-size: 13px; font-weight: 500; border-left: 5px solid; animation: slideInRight 0.2s, fadeOut 0.2s 2.8s forwards;
+            backdrop-filter: blur(10px);
+        }
+        .toast.success { border-left-color: var(--toast-success); }
+        .toast.error { border-left-color: var(--toast-error); }
+        .toast.info { border-left-color: var(--toast-info); }
+        .toast i { font-size: 18px; }
+        .toast.success i { color: var(--toast-success); }
+        .toast.error i { color: var(--toast-error); }
+        .toast.info i { color: var(--toast-info); }
+        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeOut { to { opacity: 0; transform: translateY(20px); } }
+
+        .btn-order.loading { pointer-events: none; opacity: 0.7; }
+        .btn-order.loading i.fa-spinner { animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .modal {
+            display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.3); backdrop-filter: blur(6px); align-items: center; justify-content: center;
+        }
+        .modal-content {
+            background: var(--bg-card); border-radius: 30px; max-width: 500px; width: 90%; padding: 25px;
+            position: relative; box-shadow: 0 30px 60px rgba(0,0,0,0.2);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-close { position: absolute; top: 12px; right: 18px; font-size: 24px; cursor: pointer; color: var(--text-muted); }
+        .modal-image { max-width: 100%; max-height: 150px; object-fit: contain; border-radius: 16px; margin-bottom: 10px; }
+        .modal-title { font-size: 20px; margin-bottom: 15px; color: var(--primary); }
+        .modal-description { font-size: 13px; max-height: 100px; overflow-y: auto; margin-bottom: 10px; }
+        .modal-details { background: var(--bg-card); padding: 12px; border-radius: 16px; margin: 10px 0; font-size: 12px; }
+        .modal-price { font-size: 20px; font-weight: 700; color: var(--primary); text-align: right; }
+        .modal-body { font-size: 13px; line-height: 1.6; color: var(--text-main); }
+        .modal-body ul { padding-left: 20px; margin: 10px 0; }
+
+        /* Карта на странице контактов */
+        .contacts-page .map-container {
+            margin-top: 30px;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: var(--shadow-card);
+            border: 1px solid var(--border-light);
+        }
+        .contacts-page iframe {
+            width: 100%;
+            height: 300px;
+            border: 0;
+            display: block;
+        }
+
+        /* Чат-бот */
+        .chat-button {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 6px 16px rgba(32,178,170,0.4);
+            z-index: 1000;
+            transition: var(--transition);
+            border: none;
+        }
+        .chat-button:hover {
+            background: var(--primary-dark);
+            transform: scale(1.1);
+        }
+        .chat-button i {
+            font-size: 28px;
+        }
+        .chat-window {
+            position: fixed;
+            bottom: 100px;
+            right: 30px;
+            width: 350px;
+            max-height: 500px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            display: none;
+            flex-direction: column;
+            z-index: 1000;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+        .chat-window.show {
+            display: flex;
+        }
+        .chat-header {
+            background: var(--primary);
+            color: white;
+            padding: 15px 20px;
+            font-weight: 700;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .chat-header i {
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .chat-header i:hover {
+            transform: scale(1.2);
+        }
+        .chat-messages {
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .message {
+            max-width: 80%;
+            padding: 10px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+        .message.user {
+            background: var(--primary-very-light);
+            color: var(--text-main);
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+        .message.bot {
+            background: #f1f5f9;
+            color: var(--text-main);
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+        body.dark-theme .message.bot {
+            background: #1e293b;
+            color: #e2e8f0;
+        }
+        .chat-input-area {
+            display: flex;
+            padding: 15px;
+            border-top: 1px solid var(--border-light);
+            gap: 10px;
+        }
+        .chat-input-area input {
+            flex: 1;
+            padding: 10px 15px;
+            border: 1px solid var(--border-light);
+            border-radius: 30px;
+            background: var(--bg-card);
+            color: var(--text-main);
+            outline: none;
+        }
+        .chat-input-area button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .chat-input-area button:hover {
+            background: var(--primary-dark);
+        }
+        .quick-questions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 0 15px 15px;
+        }
+        .quick-btn {
+            background: #f1f5f9;
+            border: 1px solid var(--border-light);
+            border-radius: 30px;
+            padding: 6px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: var(--transition);
+            color: var(--text-main);
+        }
+        body.dark-theme .quick-btn {
+            background: #1e293b;
+            color: #e2e8f0;
+        }
+        .quick-btn:hover {
+            background: var(--primary-very-light);
+            border-color: var(--primary);
+        }
+
+        .site-footer {
+            background: linear-gradient(145deg, #1a2a3a 0%, #0f1a24 100%);
+            color: #cbd5e1;
+            padding: 40px 0 20px;
+            margin-top: 60px;
+            border-top: 3px solid var(--primary);
+            border-radius: 40px 40px 0 0;
+            font-size: 13px;
+        }
+        .footer-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 30px;
+            padding: 0 30px;
+        }
+        .footer-col h4 { color: var(--primary); font-weight: 700; margin-bottom: 20px; font-size: 16px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .footer-col p, .footer-col li { color: #94a3b8; line-height: 1.8; margin-bottom: 8px; }
+        .footer-col ul { list-style: none; }
+        .footer-col ul li a { color: #94a3b8; text-decoration: none; transition: color 0.2s, transform 0.2s; display: inline-block; }
+        .footer-col ul li a:hover { color: var(--primary); transform: translateX(4px); }
+        .footer-social { display: flex; gap: 15px; margin-top: 15px; }
+        .footer-social a {
+            display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px;
+            background: rgba(255,255,255,0.1); border-radius: 50%; color: var(--primary); font-size: 18px;
+            transition: all 0.2s;
+        }
+        .footer-social a:hover { background: var(--primary); color: #0f172a; transform: translateY(-3px); }
+        .footer-bottom { text-align: center; padding-top: 30px; margin-top: 30px; border-top: 1px solid #334155; color: #64748b; font-size: 12px; }
+
+        @media (max-width: 1200px) { .products-grid { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 900px) {
+            .app { flex-direction: column; }
+            .sidebar { width: 100%; height: auto; border-radius: 0; }
+            .main-content { max-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+    <!-- Боковое меню -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <img src="Photo/photo_2026-03-13_22-53-04.png" alt="Zivex" onerror="this.src='https://via.placeholder.com/200x80/20B2AA/ffffff?text=Zivex'">
+        </div>
+        <nav class="sidebar-nav">
+            <div class="sidebar-item active" onclick="showPage('home')"><i class="fas fa-home"></i> Главная</div>
+            <div class="sidebar-item" onclick="showPage('catalog')"><i class="fas fa-door-open"></i> Каталог</div>
+            <div class="sidebar-item" onclick="showPage('calculator')"><i class="fas fa-calculator"></i> Калькулятор</div>
+            <div class="sidebar-item" onclick="showPage('auto')"><i class="fas fa-bolt"></i> Автоматика</div>
+            <div class="sidebar-item" onclick="showPage('options')"><i class="fas fa-cog"></i> Опции</div>
+            <div class="sidebar-item" onclick="showPage('delivery')"><i class="fas fa-truck"></i> Доставка</div>
+            <div class="sidebar-item" id="dealerToggle" onclick="toggleDealerMenu()">
+                <i class="fas fa-info-circle"></i> Дилерам
+                <i class="fas fa-chevron-down" style="margin-left: auto; font-size: 11px;"></i>
+            </div>
+            <div class="sidebar-dropdown" id="dealerDropdown">
+                <div class="sidebar-dropdown-item" onclick="openInfoModal('deliveryModal')">Условия доставки</div>
+                <div class="sidebar-dropdown-item" onclick="openInfoModal('paymentModal')">Условия оплаты</div>
+                <div class="sidebar-dropdown-item" onclick="openInfoModal('advantagesModal')">Преимущества</div>
+            </div>
+            <div class="sidebar-item" onclick="showPage('contacts')"><i class="fas fa-phone"></i> Контакты</div>
+        </nav>
+        <div class="sidebar-kp" onclick="showPage('proposal')">
+            <i class="fas fa-file-pdf"></i> Сформировать КП
+        </div>
+    </aside>
+
+    <!-- Основная часть -->
+    <main class="main-content">
+        <!-- Верхняя панель -->
+        <div class="top-bar">
+            <div class="theme-switch" onclick="toggleTheme()">
+                <i class="fas fa-sun"></i>
+                <i class="fas fa-moon"></i>
+            </div>
+            <div class="top-bar-item"><i class="fas fa-phone-alt"></i> 8 (968) 938-41-31</div>
+            <div class="top-bar-item"><i class="far fa-clock"></i> 9:00–18:00 Мск</div>
+            <div class="cart-icon" id="cartIcon" onclick="toggleCartDropdown(event)">
+                <i class="fas fa-shopping-cart"></i> Корзина
+                <span class="cart-count" id="cartCountHeader">0</span>
+            </div>
+        </div>
+
+        <!-- Поиск -->
+        <div class="search-wrapper">
+            <div class="search-container">
+                <span class="search-icon"><i class="fas fa-search"></i></span>
+                <input type="text" class="search-input" id="globalSearch" placeholder="Поиск по названию или артикулу..." oninput="updateSearchSuggestions()" onfocus="updateSearchSuggestions()" autocomplete="off">
+                <button class="search-clear" id="searchClear" onclick="clearGlobalSearch()" style="display: none;"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="search-suggestions" id="searchSuggestions"></div>
+        </div>
+
+        <!-- Корзина (выпадающая) -->
+        <div class="cart-dropdown" id="cartDropdown">
+            <div class="cart-header">
+                <h3>Корзина</h3>
+                <i class="fas fa-shopping-basket"></i>
+            </div>
+            <div class="cart-items" id="cartItems"></div>
+            <div class="cart-total" id="cartTotal">
+                <span>Общая сумма:</span>
+                <span>0 ₽</span>
+            </div>
+        </div>
+
+        <!-- Контейнер для toast-уведомлений -->
+        <div class="toast-container" id="toastContainer"></div>
+
+        <!-- Главная страница -->
+        <div id="home" class="page active">
+            <div class="home-page">
+                <div class="home-tabs">
+                    <div class="home-tab active" onclick="showHomeTab('news')">Новости</div>
+                    <div class="home-tab" onclick="showHomeTab('sale')">Акции</div>
+                </div>
+                <div class="home-content">
+                    <div class="news-content" id="newsTab">
+                        <div class="news-text">
+                            <p><strong>Отличные новости!</strong> Наш склад пополняется: скоро в наличии появятся ворота в популярном цвете RAL 7024 (графитовый серый) и новый размер 2500х2500 мм.</p>
+                        </div>
+                        <div class="news-image">
+                            <img src="Photo/фото ворот 7024.jpg" alt="Ворота" onerror="this.src='https://via.placeholder.com/220x150/20B2AA/ffffff?text=Фото'">
+                        </div>
+                    </div>
+                    <div class="sale-content" id="saleTab" style="display: none;">
+                        <p>На данный момент акций нет.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Каталог -->
+        <div id="catalog" class="page">
+            <div class="catalog-page">
+                <div class="catalog-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h2 style="color: var(--primary); font-size: 20px;">Каталог ворот</h2>
+                    <span class="count" id="catalogCount">5 товаров</span>
+                </div>
+                <div class="catalog-note">
+                    <i class="fas fa-info-circle" style="color:var(--primary); margin-right:8px;"></i>
+                    Готовые решения в наличии: представленные ниже модели ворот можно забрать с нашего склада в Одинцово (Юдино) непосредственно в день заказа. Для индивидуального расчета по вашим размерам воспользуйтесь вкладкой <a href="#" onclick="showPage('calculator'); return false;" style="color:var(--primary); font-weight:600;">«Калькулятор»</a>.
+                </div>
+                <div class="products-grid" id="catalogGrid"></div>
+            </div>
+        </div>
+
+        <!-- Калькулятор -->
+        <div id="calculator" class="page">
+            <div class="calculator-page">
+                <h2 style="color: var(--primary); font-size: 20px; margin-bottom: 20px;">Калькулятор секционных ворот</h2>
+                <div class="matrix-section">
+                    <div class="section-title" style="font-weight:600; margin-bottom:10px;"><i class="fas fa-table"></i> Матрица цен (нажмите на размер)</div>
+                    <div class="matrix-container">
+                        <table class="price-matrix" id="priceMatrix">
+                            <thead>
+                                <tr>
+                                    <th>Высота\Ширина</th><th>2000</th><th>2100</th><th>2200</th><th>2300</th><th>2400</th><th>2500</th><th>2600</th><th>2700</th><th>2800</th><th>2900</th><th>3000</th><th>3100</th><th>3200</th><th>3300</th><th>3400</th><th>3500</th><th>3600</th><th>3700</th><th>3800</th><th>3900</th><th>4000</th>
+                                </tr>
+                            </thead>
+                            <tbody id="matrixBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="type-color-section">
+                    <div class="select-block">
+                        <label>Тип ворот</label>
+                        <select id="gateType" onchange="calculatePrice()">
+                            <option value="standard">Гаражные</option>
+                        </select>
+                    </div>
+                    <div class="select-block">
+                        <label>Цвет</label>
+                        <select id="gateColor" onchange="calculatePrice()">
+                            <option value="brown">8017 шоколад</option>
+                            <option value="anthracite">7016 антрацит</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="price-result">
+                    <div class="price-row">Базовая стоимость: <span class="price-value" id="basePrice">0 ₽</span></div>
+                    <div class="price-row total">ИТОГО: <span class="total-price" id="totalPrice">0 ₽</span></div>
+                </div>
+                <div style="text-align: center;">
+                    <button class="btn-order" onclick="addToCart()" style="padding:10px 30px;"><i class="fas fa-cart-plus"></i> Добавить в корзину</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Автоматика -->
+        <div id="auto" class="page">
+            <div class="calculator-page">
+                <h2 style="color: var(--primary); font-size:20px;">Выбор автоматики</h2>
+                <div class="products-grid" id="autoGrid"></div>
+            </div>
+        </div>
+
+        <!-- Опции -->
+        <div id="options" class="page">
+            <div class="calculator-page">
+                <h2 style="color: var(--primary); font-size:20px;">Дополнительные опции</h2>
+                <div class="products-grid" id="optionsGrid"></div>
+            </div>
+        </div>
+
+        <!-- Доставка -->
+        <div id="delivery" class="page">
+            <div class="delivery-page">
+                <h2 style="color: var(--primary); font-size:20px; margin-bottom:20px;"><i class="fas fa-truck"></i> Калькулятор доставки</h2>
+                <div class="delivery-calculator" style="background:var(--bg-card); border-radius:24px; padding:20px;">
+                    <div class="delivery-options" style="display:flex; gap:15px; margin-bottom:15px;">
+                        <label style="display:flex; align-items:center; gap:6px;"><input type="radio" name="deliveryType" value="moscow" checked> Москва (МКАД и область)</label>
+                        <label style="display:flex; align-items:center; gap:6px;"><input type="radio" name="deliveryType" value="regions"> Регионы РФ</label>
+                    </div>
+                    <div class="distance-input" style="margin-bottom:15px;">
+                        <label>Расстояние (км):</label>
+                        <input type="number" id="distance" min="1" value="25" style="width:100%; max-width:250px; padding:8px 15px; border-radius:30px; border:1px solid var(--border-light); background:var(--bg-card); color:var(--text-main);">
+                    </div>
+                    <div>
+                        <button class="btn-order" onclick="calculateDelivery()" style="margin-right:10px;">Рассчитать</button>
+                        <button class="btn-order" onclick="addDeliveryToCart()">Добавить доставку</button>
+                    </div>
+                    <div class="delivery-result" style="margin-top:20px; padding:15px; background:var(--bg-card); border-left:5px solid var(--primary); border-radius:16px;">
+                        <div class="result-price" id="deliveryPrice" style="font-size:22px; font-weight:700;">0 ₽</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Формирование КП -->
+        <div id="proposal" class="page">
+            <div class="proposal-page">
+                <h2 style="color: var(--primary); font-size:20px; margin-bottom:20px;">Формирование коммерческого предложения</h2>
+                <div class="proposal-client-form" style="background:var(--bg-card); border-radius:24px; padding:20px; margin-bottom:25px;">
+                    <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
+                        <div><label>Компания</label><input type="text" id="propCompany" value="ООО СтройИнвест" style="width:100%; padding:8px; border-radius:30px; border:1px solid var(--border-light); background:var(--bg-card); color:var(--text-main);"></div>
+                        <div><label>Контактное лицо</label><input type="text" id="propContact" value="Иванов И.И." style="width:100%; padding:8px; border-radius:30px; border:1px solid var(--border-light); background:var(--bg-card); color:var(--text-main);"></div>
+                    </div>
+                    <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-top:10px;">
+                        <div><label>Телефон</label><input type="tel" id="propPhone" value="+7 (999) 123-45-67" style="width:100%; padding:8px; border-radius:30px; border:1px solid var(--border-light); background:var(--bg-card); color:var(--text-main);"></div>
+                        <div><label>Email</label><input type="email" id="propEmail" value="info@stroy.ru" style="width:100%; padding:8px; border-radius:30px; border:1px solid var(--border-light); background:var(--bg-card); color:var(--text-main);"></div>
+                    </div>
+                    <div style="margin-top:10px;"><label>Адрес объекта</label><input type="text" id="propAddress" value="г. Москва, ул. Строителей" style="width:100%; padding:8px; border-radius:30px; border:1px solid var(--border-light); background:var(--bg-card); color:var(--text-main);"></div>
+                    <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-top:15px;">
+                        <div><label>Срок (дней)</label><input type="number" id="deliveryDays" value="7" style="width:100%; padding:8px; border-radius:30px; border:1px solid var(--border-light); background:var(--bg-card); color:var(--text-main);"></div>
+                        <div><label>Предоплата %</label><input type="number" id="prepaymentPercent" value="50" style="width:100%; padding:8px; border-radius:30px; border:1px solid var(--border-light); background:var(--bg-card); color:var(--text-main);"></div>
+                    </div>
+                </div>
+                <h3 style="color: var(--primary); font-size:16px; margin-bottom:10px;">Состав предложения</h3>
+                <div class="proposal-table-container" id="proposalCartTable"></div>
+                <div style="text-align:center; margin-top:25px;">
+                    <button class="btn-order" id="generatePdfBtn" onclick="generateProposalPDF()" style="padding:12px 40px; position:relative;">
+                        <span class="btn-text"><i class="fas fa-file-pdf"></i> Скачать КП (PDF)</span>
+                        <span class="btn-spinner" style="display:none;"><i class="fas fa-spinner fa-spin"></i> Генерация...</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Контакты -->
+        <div id="contacts" class="page">
+            <div class="contacts-page">
+                <h2 style="color: var(--primary); font-size:20px;">Контакты</h2>
+                <p><i class="fas fa-phone-alt"></i> 8 (968) 938-41-31 (Дилерский отдел Москва)</p>
+                <p><i class="fas fa-envelope"></i> info@zivex.ru</p>
+                <p><i class="far fa-clock"></i> Режим работы: с 9:00 до 18:00 Мск</p>
+                <!-- Интерактивная карта склада -->
+                <div class="map-container">
+                    <iframe src="https://yandex.ru/map-widget/v1/?ll=37.253270%2C55.641474&mode=search&oid=1030860049&ol=biz&z=16" allowfullscreen></iframe>
+                </div>
+                <p style="margin-top:10px;"><i class="fas fa-map-marker-alt"></i> Адрес склада: Москва, Одинцово, Юдино, 36А</p>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Модальные окна -->
+<div id="deliveryModal" class="modal">
+    <div class="modal-content">
+        <span class="modal-close" onclick="closeModal('deliveryModal')">&times;</span>
+        <h2 class="modal-title">Условия доставки</h2>
+        <div class="modal-body">Доставка осуществляется транспортными компаниями «КИТ» и «Возовоз». При заказе от 1500 км доставка до терминала ТК — бесплатная.</div>
+    </div>
+</div>
+<div id="paymentModal" class="modal">
+    <div class="modal-content">
+        <span class="modal-close" onclick="closeModal('paymentModal')">&times;</span>
+        <h2 class="modal-title">Условия оплаты</h2>
+        <div class="modal-body">Оплата заказа производится при получении товара. После оплаты менеджер отправит код для получения груза. При получении обязательно осмотрите товар.</div>
+    </div>
+</div>
+<div id="advantagesModal" class="modal">
+    <div class="modal-content">
+        <span class="modal-close" onclick="closeModal('advantagesModal')">&times;</span>
+        <h2 class="modal-title">Преимущества ворот Zivex</h2>
+        <div class="modal-body">
+            <ul>
+                <li>Замкнутый контур внешнего и внутреннего стальных листов</li>
+                <li>Стальной лист (толщина 0.4 мм) с полимерным защитно-декоративным покрытием</li>
+                <li>Внутренний оцинкованный стальной лист (толщина 0.4 мм) с полимерным защитно-декоративным покрытием</li>
+                <li>Толщина панели 40 мм</li>
+                <li>Вспененный пенополиуретан высокой плотности 47-48 кг/м³</li>
+                <li>Коэффициент сопротивления теплопередачи ворот “Zivex” 1.05 м²·С/Вт</li>
+                <li>Усиленная промышленная фурнитура - Каркас толщиною 2.0 мм сталь, обеспечивает гарантией в 10 лет и качественную долгую эксплуатацию ворот</li>
+                <li>Бесшумные ролики - Современные подшипники и мягкий пластик обеспечивают плавный бесшумный ход</li>
+                <li>Вся фурнитура из оцинкованной стали - петли, кронштейны, ролики, метизы и т.д. Слой цинка надёжно защищает от коррозии и царапин</li>
+                <li>Резиновый верхний и нижний уплотнитель - Каучук в качестве уплотнителя повышает износостойкость ворот, препятствует проникновению влаги и холода, повышает теплосберегающие и шумоизоляционные характеристики</li>
+                <li>П-образный нижний и верхний профиль - Надежно защищает полотно ворот от повреждений. Наделяет ворота повышенной износостойкостью, тем самым увеличивает количество циклов эксплуатации</li>
+            </ul>
+        </div>
+    </div>
+</div>
+<div id="productModal" class="modal">
+    <div class="modal-content">
+        <span class="modal-close" onclick="closeModal('productModal')">&times;</span>
+        <img id="modalImage" class="modal-image" src="" alt="">
+        <h2 id="modalTitle" class="modal-title"></h2>
+        <div id="modalDescription" class="modal-description"></div>
+        <div id="modalDetails" class="modal-details"></div>
+        <div id="modalPrice" class="modal-price"></div>
+    </div>
+</div>
+
+<!-- Чат-бот -->
+<div class="chat-button" id="chatButton" onclick="toggleChat()">
+    <i class="fas fa-comment-dots"></i>
+</div>
+<div class="chat-window" id="chatWindow">
+    <div class="chat-header">
+        <span>Чат с Zivex</span>
+        <i class="fas fa-times" onclick="toggleChat()"></i>
+    </div>
+    <div class="chat-messages" id="chatMessages">
+        <div class="message bot">Здравствуйте! Я виртуальный помощник. Задайте мне вопрос о наших воротах.</div>
+    </div>
+    <div class="quick-questions">
+        <button class="quick-btn" onclick="sendQuickQuestion('price')">Цены</button>
+        <button class="quick-btn" onclick="sendQuickQuestion('delivery')">Доставка</button>
+        <button class="quick-btn" onclick="sendQuickQuestion('sizes')">Размеры</button>
+        <button class="quick-btn" onclick="sendQuickQuestion('contact')">Контакты</button>
+    </div>
+    <div class="chat-input-area">
+        <input type="text" id="chatInput" placeholder="Введите сообщение..." onkeypress="if(event.key==='Enter') sendMessage()">
+        <button onclick="sendMessage()"><i class="fas fa-paper-plane"></i></button>
+    </div>
+</div>
+
+<!-- Подвал -->
+<footer class="site-footer">
+    <div class="footer-container">
+        <div class="footer-col">
+            <h4>О компании</h4>
+            <p>Полный цикл производства секционных ворот и автоматики. Собственное производство с 2024 года.</p>
+            <p>Гарантия качества и надёжности.</p>
+        </div>
+        <div class="footer-col">
+            <h4>Продукция</h4>
+            <ul>
+                <li><a href="#" onclick="showPage('catalog'); return false;">Гаражные ворота</a></li>
+                <li><a href="#" onclick="showPage('auto'); return false;">Автоматика</a></li>
+                <li><a href="#" onclick="showPage('options'); return false;">Комплектующие</a></li>
+                <li><a href="#" onclick="showPage('delivery'); return false;">Доставка</a></li>
+            </ul>
+        </div>
+        <div class="footer-col">
+            <h4>Контакты</h4>
+            <p><i class="fas fa-phone-alt"></i> 8 (968) 938-41-31</p>
+            <p><i class="fas fa-envelope"></i> info@zivex.ru</p>
+            <p><i class="fas fa-map-marker-alt"></i> Москва, Одинцово (Юдино), 36А</p>
+        </div>
+        <div class="footer-col">
+            <h4>Мы в соцсетях</h4>
+            <div class="footer-social">
+                <a href="#"><i class="fab fa-telegram-plane"></i></a>
+                <a href="#"><i class="fab fa-whatsapp"></i></a>
+                <a href="#"><i class="fab fa-vk"></i></a>
+                <a href="#"><i class="fab fa-youtube"></i></a>
+            </div>
+            <p style="margin-top:15px;">Подписывайтесь на новости и акции</p>
+        </div>
+    </div>
+    <div class="footer-bottom">
+        © 2025 Zivex. Все права защищены. Сайт с любовью от команды разработчиков.
+    </div>
+</footer>
+
+<script>
+    // ---------- ПОЛНЫЙ РАБОЧИЙ СКРИПТ (с добавленным чат-ботом) ----------
+    const priceData = {};
+    for (let w = 2000; w <= 4000; w += 100) {
+        priceData[w] = {};
+        for (let h = 1800; h <= 4000; h += 100) {
+            priceData[w][h] = Math.round(w * h / 100);
+        }
+    }
+
+    const catalogItems = [
+        { id:5, name:'Ворота 2800x2400', description:'Полотно из сэндвич-панелей Zivex (Россия). Комплект направляющих из оцинкованного стального профиля толщиной 1,9 мм. Торсионный пружинный механизм (ресурс до 25 000 циклов). Универсальный комплект крепежных элементов. Установочный профиль 2 метра. Набор оцинкованных элементов крепления. Двухстороняя ручка. Задвижка.', price:78000, image:'Photo/Фото для католога ворот.jpg', article:'1571', design:'Стандартный', color:'RAL7016 / RAL8017', dimensions:'2800x2400' },
+        { id:6, name:'Ворота 3000x2500', description:'Полотно из сэндвич-панелей Zivex (Россия). Комплект направляющих из оцинкованного стального профиля толщиной 1,9 мм. Торсионный пружинный механизм (ресурс до 25 000 циклов). Универсальный комплект крепежных элементов. Установочный профиль 2 метра. Набор оцинкованных элементов крепления. Двухстороняя ручка. Задвижка.', price:89000, image:'Photo/Фото для католога ворот.jpg', article:'1572', design:'Стандартный', color:'RAL7016 / RAL8017', dimensions:'3000x2500' },
+        { id:7, name:'Ворота 3000x3000', description:'Полотно из сэндвич-панелей Zivex (Россия). Комплект направляющих из оцинкованного стального профиля толщиной 1,9 мм. Торсионный пружинный механизм (ресурс до 25 000 циклов). Универсальный комплект крепежных элементов. Установочный профиль 2 метра. Набор оцинкованных элементов крепления. Двухстороняя ручка. Задвижка.', price:119500, image:'Photo/Фото для католога ворот.jpg', article:'1573', design:'Стандартный', color:'RAL7016 / RAL8017', dimensions:'3000x3000' },
+        { id:8, name:'Ворота 3500x3500', description:'Полотно из сэндвич-панелей Zivex (Россия). Комплект направляющих из оцинкованного стального профиля толщиной 1,9 мм. Торсионный пружинный механизм (ресурс до 25 000 циклов). Универсальный комплект крепежных элементов. Установочный профиль 2 метра. Набор оцинкованных элементов крепления. Двухстороняя ручка. Задвижка.', price:159000, image:'Photo/Фото для католога ворот.jpg', article:'1574', design:'Стандартный', color:'RAL7016 / RAL8017', dimensions:'3500x3500' },
+        { id:9, name:'Ворота 4000x4000', description:'Полотно из сэндвич-панелей Zivex (Россия). Комплект направляющих из оцинкованного стального профиля толщиной 1,9 мм. Торсионный пружинный механизм (ресурс до 25 000 циклов). Универсальный комплект крепежных элементов. Установочный профиль 2 метра. Набор оцинкованных элементов крепления. Двухстороняя ручка. Задвижка.', price:219000, image:'Photo/Фото для католога ворот.jpg', article:'1575', design:'Стандартный', color:'RAL7016 / RAL8017', dimensions:'4000x4000' }
+    ];
+
+    const autoItems = [
+        { name:'Zivex matic 1000', price:5000, desc:'Потолочный привод для ворот до 12 м²', icon:'fa-bolt' },
+        { name:'Zivex matic 1200', price:5000, desc:'Потолочный привод для ворот до 15 м²', icon:'fa-bolt' },
+        { name:'Zivex matic 1500', price:5000, desc:'Потолочный привод для ворот до 18 м²', icon:'fa-bolt' },
+        { name:'Zivex PRO Matic', price:10000, desc:'Вальный привод для тяжёлых ворот', icon:'fa-cog' }
+    ];
+
+    const optionItems = [
+        { name:'Разблокиратор', price:800, desc:'Нужен для отключения электропривода в случае когда в гараже один вход или выход.', icon:'fa-unlock-alt' },
+        { name:'Фотоэлементы', price:900, desc:'Препятствуют закрытию ворот если что-то находится в проеме.', icon:'fa-eye' },
+        { name:'Ручной цепной привод', price:7000, desc:'Используется для открытия ворот цепью.', icon:'fa-chain' },
+        { name:'Встроенная калитка Zivex', price:49500, desc:'Встроенная дверь в ваших воротах, больше не нужно открывать и закрывать ворота чтобы выйти из гаража.', icon:'fa-door-open' },
+        { name:'Сигнальная лампа', price:4000, desc:'Устройство предназначено для оповещения о начале движения ворот. При открытии или закрытии створок подается световой и/или звуковой сигнал, предупреждая окружающих о работе механизма. Также позволяет пользователю удаленно убедиться в срабатывании системы управления.', icon:'fa-lightbulb' }
+    ];
+
+    const allSearchItems = [
+        ...catalogItems.map(item => ({ ...item, type: 'catalog', searchId: item.id })),
+        ...autoItems.map((item, index) => ({ ...item, type: 'auto', searchId: index, article: '' })),
+        ...optionItems.map((item, index) => ({ ...item, type: 'option', searchId: index, article: '' }))
+    ];
+
+    let cart = [];
+    let catalogRendered = false;
+    let matrixRendered = false;
+    let autoRendered = false;
+    let optionsRendered = false;
+    let selectedWidth = 3000;
+    let selectedHeight = 2500;
+    let lastCalculatedDelivery = { price: 0, type: 'moscow', distance: 25 };
+
+    // ---------- TOAST-УВЕДОМЛЕНИЯ ----------
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        let icon = 'fa-check-circle';
+        if (type === 'error') icon = 'fa-exclamation-circle';
+        if (type === 'info') icon = 'fa-info-circle';
+        toast.innerHTML = `<i class="fas ${icon}"></i><span>${message}</span>`;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+
+    // ---------- АНИМАЦИЯ ПЕРЕКЛЮЧЕНИЯ СТРАНИЦ ----------
+    function showPage(pageId) {
+        const currentActive = document.querySelector('.page.active');
+        if (currentActive) {
+            currentActive.classList.add('fade-out');
+            setTimeout(() => {
+                document.querySelectorAll('.page').forEach(p => p.classList.remove('active', 'fade-out'));
+                document.getElementById(pageId).classList.add('active');
+                updateSidebarActive(pageId);
+                if (pageId === 'proposal') updateProposalTable();
+            }, 150);
+        } else {
+            document.getElementById(pageId).classList.add('active');
+            updateSidebarActive(pageId);
+            if (pageId === 'proposal') updateProposalTable();
+        }
+    }
+
+    function updateSidebarActive(pageId) {
+        document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+        const map = {
+            home: 'Главная',
+            catalog: 'Каталог',
+            calculator: 'Калькулятор',
+            auto: 'Автоматика',
+            options: 'Опции',
+            delivery: 'Доставка',
+            contacts: 'Контакты'
+        };
+        document.querySelectorAll('.sidebar-item').forEach(item => {
+            if (item.innerText.includes(map[pageId])) item.classList.add('active');
+        });
+    }
+
+    // ---------- АНИМИРОВАННАЯ ВОЛНА НА МАТРИЦЕ ----------
+    function addRipple(event) {
+        const td = event.currentTarget;
+        const rect = td.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        const ripple = document.createElement('span');
+        ripple.className = 'ripple';
+        ripple.style.left = x + 'px';
+        ripple.style.top = y + 'px';
+        ripple.style.width = ripple.style.height = Math.max(rect.width, rect.height) + 'px';
+        td.appendChild(ripple);
+        setTimeout(() => ripple.remove(), 600);
+    }
+
+    // ---------- ПРОГРЕСС-БАР ПРИ КП ----------
+    async function generateProposalPDF() {
+        const btn = document.getElementById('generatePdfBtn');
+        const textSpan = btn.querySelector('.btn-text');
+        const spinnerSpan = btn.querySelector('.btn-spinner');
+        btn.classList.add('loading');
+        textSpan.style.display = 'none';
+        spinnerSpan.style.display = 'inline';
+
+        try {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            await originalGenerateProposalPDF();
+        } catch (e) {
+            showToast('Ошибка при создании PDF', 'error');
+        } finally {
+            btn.classList.remove('loading');
+            textSpan.style.display = 'inline';
+            spinnerSpan.style.display = 'none';
+        }
+    }
+
+    async function originalGenerateProposalPDF() {
+        if (cart.length === 0) { showToast('Корзина пуста. Нечего выгружать.', 'error'); return; }
+        const { jsPDF } = window.jspdf;
+        const company = document.getElementById('propCompany').value;
+        const contact = document.getElementById('propContact').value;
+        const phone = document.getElementById('propPhone').value;
+        const email = document.getElementById('propEmail').value;
+        const address = document.getElementById('propAddress').value;
+        const date = new Date().toLocaleDateString('ru-RU');
+        const number = 'КП-' + Date.now().toString().slice(-6);
+        const deliveryDays = document.getElementById('deliveryDays').value;
+        const prepayment = document.getElementById('prepaymentPercent').value;
+
+        const groups = {
+            calculator: { title: 'Ворота (индивидуальный расчёт)', items: [] },
+            catalog:    { title: 'Готовые ворота (каталог)', items: [] },
+            auto:       { title: 'Автоматика', items: [] },
+            option:     { title: 'Опции', items: [] },
+            delivery:   { title: 'Доставка', items: [] },
+            unknown:    { title: 'Прочее', items: [] }
+        };
+        for (let item of cart) {
+            const cat = item.category || 'unknown';
+            if (groups[cat]) groups[cat].items.push(item);
+            else groups.unknown.items.push(item);
+        }
+        let itemsHtml = ''; let overallTotal = 0;
+        for (let groupKey of ['calculator', 'catalog', 'auto', 'option', 'delivery', 'unknown']) {
+            const group = groups[groupKey];
+            if (group.items.length === 0) continue;
+            itemsHtml += `<h3 style="color: #20B2AA; margin-top: 20px;">${group.title}</h3><table style="width:100%; border-collapse:collapse;"><thead><tr style="background:#20B2AA; color:white;"><th>Наименование</th><th>Описание</th><th>Цена</th><th>Кол-во</th><th>Сумма</th></tr></thead><tbody>`;
+            for (let item of group.items) {
+                const sum = item.unitPrice * item.quantity;
+                overallTotal += sum;
+                const displayDesc = item.fullDescription || item.description;
+                itemsHtml += `<tr><td>${item.name}</td><td>${displayDesc}</td><td>${item.unitPrice.toLocaleString()} ₽</td><td>${item.quantity}</td><td>${sum.toLocaleString()} ₽</td></tr>`;
+            }
+            itemsHtml += '</tbody></table>';
+        }
+
+        const pdfContainer = document.createElement('div');
+        pdfContainer.style.position = 'absolute'; pdfContainer.style.left = '-9999px'; pdfContainer.style.top = '0'; pdfContainer.style.width = '800px'; pdfContainer.style.background = '#fff'; pdfContainer.style.padding = '30px'; pdfContainer.style.fontFamily = 'Inter, sans-serif'; pdfContainer.style.color = '#000';
+        pdfContainer.innerHTML = `
+            <div style="display:flex;justify-content:space-between;"><h1 style="color:#20B2AA;">КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ</h1></div>
+            <p>№ ${number} от ${date}</p>
+            <div style="background:#f1f5f9;padding:15px;border-radius:10px;">
+                <p><strong>Компания:</strong> ${company}</p>
+                <p><strong>Контактное лицо:</strong> ${contact}</p>
+                <p><strong>Телефон:</strong> ${phone}</p>
+                <p><strong>Email:</strong> ${email}</p>
+                <p><strong>Адрес объекта:</strong> ${address}</p>
+            </div>
+            ${itemsHtml}
+            <div style="text-align:right;font-size:1.5rem; margin-top:20px;"><strong>ИТОГО: ${overallTotal.toLocaleString()} ₽</strong></div>
+            <div style="margin-top:20px;">
+                <h4>Условия:</h4>
+                <ul>
+                    <li>Срок изготовления: ${deliveryDays} дней</li>
+                    <li>Предоплата: ${prepayment}%</li>
+                    <li>Гарантия: 2 года</li>
+                </ul>
+            </div>
+        `;
+        document.body.appendChild(pdfContainer);
+        try {
+            const canvas = await html2canvas(pdfContainer, { scale: 2 });
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF();
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            const ratio = Math.min(pdfWidth / canvas.width, pdfHeight / canvas.height);
+            const width = canvas.width * ratio;
+            const height = canvas.height * ratio;
+            pdf.addImage(imgData, 'PNG', (pdfWidth - width) / 2, 10, width, height);
+            pdf.save(`KP_Zivex_${Date.now()}.pdf`);
+            showToast('PDF успешно создан', 'success');
+        } catch (error) {
+            showToast('Ошибка при создании PDF', 'error');
+        } finally {
+            document.body.removeChild(pdfContainer);
+        }
+    }
+
+    // ---------- ТЕМА ----------
+    function toggleTheme() {
+        document.body.classList.toggle('dark-theme');
+    }
+
+    // ---------- ДИЛЕРСКОЕ МЕНЮ ----------
+    function toggleDealerMenu() {
+        document.getElementById('dealerDropdown').classList.toggle('show');
+    }
+
+    // ---------- МОДАЛЬНЫЕ ОКНА ----------
+    function openInfoModal(modalId) {
+        document.getElementById(modalId).style.display = 'flex';
+    }
+
+    function closeModal(modalId) {
+        document.getElementById(modalId).style.display = 'none';
+    }
+
+    // ---------- ПОИСК ----------
+    function updateSearchSuggestions() {
+        const input = document.getElementById('globalSearch');
+        const suggestionsDiv = document.getElementById('searchSuggestions');
+        const clearBtn = document.getElementById('searchClear');
+        const term = input.value.trim().toLowerCase();
+        if (term.length > 0) clearBtn.style.display = 'block'; else clearBtn.style.display = 'none';
+        if (term.length < 2) { suggestionsDiv.classList.remove('show'); return; }
+        const filtered = allSearchItems.filter(item => item.name.toLowerCase().includes(term) || (item.article && item.article.toLowerCase().includes(term)));
+        if (filtered.length === 0) {
+            suggestionsDiv.innerHTML = '<div class="suggestion-item" style="justify-content:center;">Ничего не найдено</div>';
+            suggestionsDiv.classList.add('show'); return;
+        }
+        let html = '';
+        filtered.forEach(item => {
+            let categoryText = '';
+            if (item.type === 'catalog') categoryText = 'Ворота';
+            else if (item.type === 'auto') categoryText = 'Автоматика';
+            else if (item.type === 'option') categoryText = 'Опции';
+            html += `<div class="suggestion-item" onclick="selectSearchItem('${item.type}', ${item.searchId})"><span class="suggestion-category">${categoryText}</span><div class="suggestion-info"><div class="suggestion-title">${item.name}</div>${item.article ? `<div class="suggestion-article">Арт. ${item.article}</div>` : ''}</div></div>`;
+        });
+        suggestionsDiv.innerHTML = html;
+        suggestionsDiv.classList.add('show');
+    }
+
+    function clearGlobalSearch() {
+        document.getElementById('globalSearch').value = '';
+        document.getElementById('searchClear').style.display = 'none';
+        document.getElementById('searchSuggestions').classList.remove('show');
+    }
+
+    function selectSearchItem(type, id) {
+        clearGlobalSearch();
+        if (type === 'catalog') {
+            showPage('catalog');
+            setTimeout(() => {
+                const item = catalogItems.find(i => i.id === id);
+                if (item) {
+                    const card = document.querySelector(`.product-card[data-id="${id}"]`);
+                    if (card) card.click(); else openModalFromItem(item);
+                }
+            }, 100);
+        } else if (type === 'auto') {
+            showPage('auto');
+            setTimeout(() => {
+                const card = document.getElementById(`auto-${id}`);
+                if (card) { card.classList.add('highlight'); setTimeout(() => card.classList.remove('highlight'), 2000); card.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+            }, 100);
+        } else if (type === 'option') {
+            showPage('options');
+            setTimeout(() => {
+                const card = document.getElementById(`opt-${id}`);
+                if (card) { card.classList.add('highlight'); setTimeout(() => card.classList.remove('highlight'), 2000); card.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+            }, 100);
+        }
+    }
+
+    function openModalFromItem(item) {
+        document.getElementById('modalImage').src = item.image;
+        document.getElementById('modalTitle').innerText = item.name;
+        document.getElementById('modalDescription').innerText = item.description;
+        document.getElementById('modalDetails').innerHTML = `<p><strong>Артикул:</strong> ${item.article}</p><p><strong>Размеры:</strong> ${item.dimensions || '—'}</p><p><strong>Дизайн:</strong> ${item.design}</p><p><strong>Цвет:</strong> ${item.color}</p>`;
+        document.getElementById('modalPrice').innerHTML = `${item.price.toLocaleString()} ₽`;
+        document.getElementById('productModal').style.display = 'flex';
+    }
+
+    // ---------- ГЛАВНАЯ ВКЛАДКИ ----------
+    function showHomeTab(tab) {
+        const newsTab = document.getElementById('newsTab');
+        const saleTab = document.getElementById('saleTab');
+        const tabs = document.querySelectorAll('.home-tab');
+        if (tab === 'news') {
+            newsTab.style.display = 'flex';
+            saleTab.style.display = 'none';
+            tabs[0].classList.add('active');
+            tabs[1].classList.remove('active');
+        } else {
+            newsTab.style.display = 'none';
+            saleTab.style.display = 'block';
+            tabs[0].classList.remove('active');
+            tabs[1].classList.add('active');
+        }
+    }
+
+    // ---------- МОДАЛЬНОЕ ОКНО ТОВАРА ----------
+    function openModal(element) {
+        const name = element.dataset.name;
+        const description = element.dataset.description;
+        const price = element.dataset.price;
+        const image = element.dataset.image;
+        const article = element.dataset.article;
+        const dimensions = element.dataset.dimensions;
+        const design = element.dataset.design;
+        const color = element.dataset.color;
+        document.getElementById('modalImage').src = image;
+        document.getElementById('modalTitle').innerText = name;
+        document.getElementById('modalDescription').innerText = description;
+        document.getElementById('modalDetails').innerHTML = `<p><strong>Артикул:</strong> ${article}</p><p><strong>Размеры:</strong> ${dimensions || '—'}</p><p><strong>Дизайн:</strong> ${design}</p><p><strong>Цвет:</strong> ${color}</p>`;
+        document.getElementById('modalPrice').innerHTML = `${parseInt(price).toLocaleString()} ₽`;
+        document.getElementById('productModal').style.display = 'flex';
+    }
+
+    // ---------- ЗАКРЫТИЕ МОДАЛОК ПО КЛИКУ НА ФОН ----------
+    window.onclick = function(event) {
+        const modals = ['productModal', 'deliveryModal', 'paymentModal', 'advantagesModal'];
+        for (let id of modals) {
+            const modal = document.getElementById(id);
+            if (event.target === modal) modal.style.display = 'none';
+        }
+    };
+
+    // ---------- МАТРИЦА ----------
+    function createMatrix() {
+        if (matrixRendered) return;
+        const widths = []; for (let w = 2000; w <= 4000; w += 100) widths.push(w);
+        const heights = []; for (let h = 1800; h <= 4000; h += 100) heights.push(h);
+        let tbody = document.getElementById('matrixBody');
+        let html = '';
+        for (let h of heights) {
+            html += '<tr><td>'+h+'</td>';
+            for (let w of widths) {
+                let price = priceData[w]?.[h];
+                html += `<td data-width="${w}" data-height="${h}" onclick="selectSize(${w}, ${h}); addRipple(event);">${price ? price.toLocaleString()+' ₽' : '—'}</td>`;
+            }
+            html += '</tr>';
+        }
+        tbody.innerHTML = html;
+        matrixRendered = true;
+    }
+
+    function selectSize(w, h) {
+        document.querySelectorAll('#matrixBody td').forEach(td => td.classList.remove('selected'));
+        const cell = document.querySelector(`#matrixBody td[data-width="${w}"][data-height="${h}"]`);
+        if (cell) cell.classList.add('selected');
+        selectedWidth = w;
+        selectedHeight = h;
+        calculatePrice();
+    }
+
+    function calculatePrice() {
+        let base = (priceData[selectedWidth]?.[selectedHeight] || 0);
+        document.getElementById('basePrice').innerText = Math.round(base).toLocaleString() + ' ₽';
+        document.getElementById('totalPrice').innerText = Math.round(base).toLocaleString() + ' ₽';
+        return Math.round(base);
+    }
+
+    // ---------- ДОСТАВКА ----------
+    function calculateDelivery() {
+        const type = document.querySelector('input[name="deliveryType"]:checked').value;
+        const distance = parseFloat(document.getElementById('distance').value);
+        let price = 0;
+        if (type === 'moscow') {
+            price = distance <= 25 ? 5000 : 5000 + (distance - 25) * 100;
+        } else {
+            if (distance <= 1500) price = 0;
+            else if (distance <= 2000) price = 3000;
+            else if (distance <= 3000) price = 4000;
+            else if (distance <= 4000) price = 5000;
+            else price = 5000;
+        }
+        document.getElementById('deliveryPrice').innerText = Math.round(price).toLocaleString() + ' ₽';
+        lastCalculatedDelivery = { price, type, distance };
+        showToast('Стоимость доставки рассчитана', 'info');
+    }
+
+    function addDeliveryToCart() {
+        if (lastCalculatedDelivery.price === 0) { showToast('Сначала рассчитайте стоимость доставки!', 'error'); return; }
+        let name = 'Доставка';
+        let desc = lastCalculatedDelivery.type === 'moscow' ? `Москва, ${lastCalculatedDelivery.distance} км` : `Регионы РФ, ${lastCalculatedDelivery.distance} км`;
+        cart.push({ id: Date.now() + Math.random(), name: name, description: desc, unitPrice: lastCalculatedDelivery.price, quantity: 1, category: 'delivery' });
+        updateCart();
+        showToast('Доставка добавлена в корзину', 'success');
+    }
+
+    // ---------- РЕНДЕР КАТАЛОГА ----------
+    function renderCatalog() {
+        if (catalogRendered) return;
+        let grid = document.getElementById('catalogGrid');
+        let html = '';
+        for (let item of catalogItems) {
+            const escapedDesc = item.description.replace(/"/g, '&quot;');
+            html += `<div class="product-card" data-id="${item.id}" data-name="${item.name}" data-description="${escapedDesc}" data-price="${item.price}" data-image="${item.image}" data-article="${item.article}" data-dimensions="${item.dimensions}" data-design="${item.design}" data-color="${item.color}" onclick="openModal(this)"><div class="product-image"><img src="${item.image}" alt="${item.name}" onerror="this.src='https://via.placeholder.com/400x200/20B2AA/ffffff?text=Ворота'"></div><div class="product-info"><h3>${item.name}</h3><div class="product-article">Артикул: ${item.article}</div><div class="product-details"><p>${item.description}</p></div><div class="product-price">${item.price.toLocaleString()} ₽</div><div class="order-block" onclick="event.stopPropagation();"><div class="quantity-selector"><button class="quantity-btn" onclick="changeQty('cat-${item.id}', -1)">-</button><input type="text" class="quantity-input" id="qty-cat-${item.id}" value="1" readonly><button class="quantity-btn" onclick="changeQty('cat-${item.id}', 1)">+</button></div><button class="btn-order" onclick="orderItem('catalog', ${item.id})">Заказать</button></div></div></div>`;
+        }
+        grid.innerHTML = html;
+        document.getElementById('catalogCount').innerText = catalogItems.length + ' товаров';
+        catalogRendered = true;
+    }
+
+    function renderAuto() {
+        if (autoRendered) return;
+        let grid = document.getElementById('autoGrid');
+        let html = '';
+        autoItems.forEach((item, index) => {
+            let id = `auto-${index}`;
+            html += `<div class="product-card" id="${id}"><div class="product-image"><i class="fas ${item.icon}"></i></div><div class="product-info"><h3>${item.name}</h3><div class="product-details">${item.desc}</div><div class="product-price">${item.price.toLocaleString()} ₽</div><div class="order-block"><div class="quantity-selector"><button class="quantity-btn" onclick="changeQty('${id}', -1)">-</button><input type="text" class="quantity-input" id="qty-${id}" value="1" readonly><button class="quantity-btn" onclick="changeQty('${id}', 1)">+</button></div><button class="btn-order" onclick="orderItem('auto', ${index})">Заказать</button></div></div></div>`;
+        });
+        grid.innerHTML = html;
+        autoRendered = true;
+    }
+
+    function renderOptions() {
+        if (optionsRendered) return;
+        let grid = document.getElementById('optionsGrid');
+        let html = '';
+        optionItems.forEach((item, index) => {
+            let id = `opt-${index}`;
+            html += `<div class="product-card" id="${id}"><div class="product-image"><i class="fas ${item.icon}"></i></div><div class="product-info"><h3>${item.name}</h3><div class="product-details">${item.desc}</div><div class="product-price">${item.price.toLocaleString()} ₽</div><div class="order-block"><div class="quantity-selector"><button class="quantity-btn" onclick="changeQty('${id}', -1)">-</button><input type="text" class="quantity-input" id="qty-${id}" value="1" readonly><button class="quantity-btn" onclick="changeQty('${id}', 1)">+</button></div><button class="btn-order" onclick="orderItem('option', ${index})">Заказать</button></div></div></div>`;
+        });
+        grid.innerHTML = html;
+        optionsRendered = true;
+    }
+
+    function changeQty(prefix, delta) {
+        let input = document.getElementById(`qty-${prefix}`);
+        if (!input) return;
+        let val = parseInt(input.value) || 1;
+        val = Math.max(1, val + delta);
+        input.value = val;
+    }
+
+    function orderItem(type, id) {
+        let item, name, price, qty, fullDesc;
+        if (type === 'catalog') {
+            item = catalogItems.find(i => i.id === id);
+            if (!item) return;
+            name = item.name; price = item.price; qty = parseInt(document.getElementById(`qty-cat-${id}`).value) || 1; fullDesc = item.description;
+        } else if (type === 'auto') {
+            item = autoItems[id]; name = item.name; price = item.price; qty = parseInt(document.getElementById(`qty-auto-${id}`).value) || 1; fullDesc = item.desc;
+        } else if (type === 'option') {
+            item = optionItems[id]; name = item.name; price = item.price; qty = parseInt(document.getElementById(`qty-opt-${id}`).value) || 1; fullDesc = item.desc;
+        } else return;
+
+        cart.push({ id: Date.now() + Math.random(), name: name, description: fullDesc.substring(0,50)+'...', fullDescription: fullDesc, unitPrice: price, quantity: qty, category: type });
+        updateCart();
+        let element = document.getElementById(type === 'catalog' ? `cat-${id}` : (type === 'auto' ? `auto-${id}` : `opt-${id}`));
+        if (element) { element.classList.add('fly-animation'); setTimeout(() => element.classList.remove('fly-animation'), 600); }
+        let counter = document.getElementById('cartCountHeader');
+        counter.classList.add('pop'); setTimeout(() => counter.classList.remove('pop'), 200);
+        showToast(`Товар "${name}" в количестве ${qty} шт. добавлен в корзину!`, 'success');
+    }
+
+    function addToCart() {
+        let total = calculatePrice();
+        if (total === 0) { showToast('Выберите размер из матрицы!', 'error'); return; }
+        let name = `Ворота ${selectedWidth}x${selectedHeight}`;
+        let colorSelect = document.getElementById('gateColor');
+        let fullDesc = `Гаражные, ${colorSelect.options[colorSelect.selectedIndex].text}`;
+        cart.push({ id: Date.now(), name: name, description: fullDesc, fullDescription: fullDesc, unitPrice: total, quantity: 1, category: 'calculator' });
+        updateCart();
+        showToast('Ворота добавлены в корзину', 'success');
+    }
+
+    function updateItemPrice(id, newPrice) {
+        let item = cart.find(i => i.id == id);
+        if (item) item.unitPrice = parseInt(newPrice) || 0;
+        updateCart();
+        showToast('Цена обновлена', 'info');
+    }
+
+    function removeFromCart(id, event) {
+        if (event) event.stopPropagation();
+        cart = cart.filter(i => i.id != id);
+        let wasOpen = document.getElementById('cartDropdown').classList.contains('show');
+        updateCart();
+        if (wasOpen) document.getElementById('cartDropdown').classList.add('show');
+        showToast('Товар удалён из корзины', 'info');
+    }
+
+    function updateCart() {
+        let html = '', total = 0;
+        for (let item of cart) {
+            let itemTotal = item.unitPrice * item.quantity;
+            total += itemTotal;
+            html += `<div class="cart-item">
+                <div class="cart-item-img"><i class="fas fa-box"></i></div>
+                <div class="cart-item-info">
+                    <div class="cart-item-title">${item.name}</div>
+                    <div class="cart-item-desc">${item.description}</div>
+                </div>
+                <div class="cart-item-price">${itemTotal.toLocaleString()} ₽</div>
+                <div class="cart-item-actions">
+                    <button onclick="updateItemPrice(${item.id}, prompt('Новая цена', ${item.unitPrice}))"><i class="fas fa-edit"></i></button>
+                    <button onclick="removeFromCart(${item.id}, event)"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>`;
+        }
+        document.getElementById('cartItems').innerHTML = html || '<p style="text-align:center; padding:20px;">Корзина пуста</p>';
+        document.getElementById('cartTotal').innerHTML = `<span>Общая сумма:</span><span>${total.toLocaleString()} ₽</span>`;
+        document.getElementById('cartCountHeader').innerText = cart.length;
+        updateProposalTable();
+    }
+
+    function toggleCartDropdown(event) {
+        event.stopPropagation();
+        document.getElementById('cartDropdown').classList.toggle('show');
+    }
+
+    function updateProposalTable() {
+        let container = document.getElementById('proposalCartTable');
+        if (!container) return;
+        if (cart.length === 0) { container.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding:20px;">Корзина пуста. Добавьте товары.</p>'; return; }
+        const groups = {
+            calculator: { title: 'Ворота (индивидуальный расчёт)', items: [] },
+            catalog:    { title: 'Готовые ворота (каталог)', items: [] },
+            auto:       { title: 'Автоматика', items: [] },
+            option:     { title: 'Опции', items: [] },
+            delivery:   { title: 'Доставка', items: [] },
+            unknown:    { title: 'Прочее', items: [] }
+        };
+        for (let item of cart) { const cat = item.category || 'unknown'; if (groups[cat]) groups[cat].items.push(item); else groups.unknown.items.push(item); }
+        let html = ''; let overallTotal = 0;
+        for (let groupKey of ['calculator', 'catalog', 'auto', 'option', 'delivery', 'unknown']) {
+            const group = groups[groupKey]; if (group.items.length === 0) continue;
+            html += `<h4 style="color:var(--primary); margin:15px 0 5px;">${group.title}</h4><table style="width:100%; border-collapse:collapse; font-size:12px;"><thead><tr style="background:var(--primary); color:white;"><th style="padding:8px;">Наименование</th><th>Описание</th><th>Цена</th><th>Кол-во</th><th>Сумма</th></tr></thead><tbody>`;
+            for (let item of group.items) { const sum = item.unitPrice * item.quantity; overallTotal += sum; const displayDesc = item.fullDescription || item.description; html += `<tr style="border-bottom:1px solid var(--border-light);"><td>${item.name}</td><td>${displayDesc}</td><td>${item.unitPrice.toLocaleString()} ₽</td><td>${item.quantity}</td><td>${sum.toLocaleString()} ₽</td></tr>`; }
+            html += '</tbody></table>';
+        }
+        html += `<div style="font-size:16px; font-weight:700; text-align:right; margin-top:10px; color:var(--primary);">ИТОГО: ${overallTotal.toLocaleString()} ₽</div>`;
+        container.innerHTML = html;
+    }
+
+    function updateCartCounter() { document.getElementById('cartCountHeader').innerText = cart.length; }
+
+    // ---------- ЧАТ-БОТ ----------
+    function toggleChat() {
+        const win = document.getElementById('chatWindow');
+        win.classList.toggle('show');
+    }
+
+    function sendMessage() {
+        const input = document.getElementById('chatInput');
+        const text = input.value.trim();
+        if (text === '') return;
+        addMessage(text, 'user');
+        input.value = '';
+        setTimeout(() => {
+            const reply = getBotReply(text);
+            addMessage(reply, 'bot');
+        }, 500);
+    }
+
+    function sendQuickQuestion(type) {
+        let question = '';
+        switch(type) {
+            case 'price': question = 'Сколько стоят ворота?'; break;
+            case 'delivery': question = 'Как осуществляется доставка?'; break;
+            case 'sizes': question = 'Какие размеры ворот доступны?'; break;
+            case 'contact': question = 'Как с вами связаться?'; break;
+        }
+        addMessage(question, 'user');
+        setTimeout(() => {
+            const reply = getBotReply(question);
+            addMessage(reply, 'bot');
+        }, 500);
+    }
+
+    function addMessage(text, sender) {
+        const messagesDiv = document.getElementById('chatMessages');
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `message ${sender}`;
+        msgDiv.innerText = text;
+        messagesDiv.appendChild(msgDiv);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    function getBotReply(text) {
+        const lower = text.toLowerCase();
+        if (lower.includes('цен') || lower.includes('сто') || lower.includes('прайс') || lower.includes('price')) {
+            return 'Цены на ворота зависят от размера и комплектации. Воспользуйтесь нашим калькулятором для точного расчёта. Базовая цена от 78 000 ₽.';
+        } else if (lower.includes('доставк') || lower.includes('delivery')) {
+            return 'Доставка осуществляется по Москве и регионам. Стоимость рассчитывается в калькуляторе доставки. Самовывоз со склада в Одинцово (Юдино) бесплатно.';
+        } else if (lower.includes('размер') || lower.includes('sizes') || lower.includes('габарит')) {
+            return 'Мы производим ворота любых размеров от 2000x1800 до 4000x4000 мм с шагом 100 мм. В каталоге есть готовые решения.';
+        } else if (lower.includes('контакт') || lower.includes('телефон') || lower.includes('адрес')) {
+            return 'Наш телефон: 8 (968) 938-41-31, email: info@zivex.ru. Склад: Москва, Одинцово, Юдино, 36А.';
+        } else {
+            return 'Извините, я ещё учусь. Попробуйте задать вопрос иначе или свяжитесь с менеджером по телефону.';
+        }
+    }
+
+    // ---------- ЗАГРУЗКА ----------
+    window.onload = function() {
+        createMatrix();
+        calculatePrice();
+        renderCatalog();
+        renderAuto();
+        renderOptions();
+        updateCartCounter();
+        updateProposalTable();
+        document.addEventListener('click', function(event) {
+            const cartDropdown = document.getElementById('cartDropdown');
+            const cartIcon = document.getElementById('cartIcon');
+            const searchSuggestions = document.getElementById('searchSuggestions');
+            const searchInput = document.getElementById('globalSearch');
+            if (!cartIcon.contains(event.target) && !cartDropdown.contains(event.target)) {
+                cartDropdown.classList.remove('show');
+            }
+            if (!searchInput.contains(event.target) && !searchSuggestions.contains(event.target)) {
+                searchSuggestions.classList.remove('show');
+            }
+        });
+    };
+</script>
+</body>
+</html>
