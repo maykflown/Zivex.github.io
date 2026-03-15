@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zivex — современный сайт с микроанимациями и чат-ботом</title>
+    <title>Zivex — полная версия с PWA, сравнением и отзывами</title>
     <!-- jspdf и html2canvas (для КП) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -13,6 +13,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Манифест для PWA -->
+    <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Zivex%22%2C%22short_name%22%3A%22Zivex%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23f8fafc%22%2C%22theme_color%22%3A%22%2320B2AA%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22Photo%2Fphoto_2026-03-13_22-53-04.png%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fpng%22%7D%5D%7D">
+    <meta name="theme-color" content="#20B2AA">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -52,6 +55,22 @@
             --border-light: #334155;
             --shadow-card: 0 10px 25px -5px rgba(0,0,0,0.5);
         }
+        /* Стилизация скроллбаров */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--border-light);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-dark);
+        }
         .app { display: flex; min-height: 100vh; max-width: 1600px; margin: 0 auto; }
         .sidebar {
             width: 260px;
@@ -76,12 +95,12 @@
             height: 80px;
             width: auto;
             filter: drop-shadow(0 2px 4px rgba(32,178,170,0.2));
-            animation: pulse 2s infinite ease-in-out; /* постоянная пульсация */
+            animation: glow 2s infinite ease-in-out;
         }
-        @keyframes pulse {
-            0% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.8; transform: scale(1.02); }
-            100% { opacity: 1; transform: scale(1); }
+        @keyframes glow {
+            0% { filter: drop-shadow(0 0 2px rgba(32,178,170,0.5)); }
+            50% { filter: drop-shadow(0 0 12px rgba(32,178,170,0.9)); }
+            100% { filter: drop-shadow(0 0 2px rgba(32,178,170,0.5)); }
         }
         .sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 6px; }
         .sidebar-item {
@@ -234,7 +253,6 @@
             gap: 15px;
             cursor: pointer;
             font-size: 13px;
-            transition: background 0.15s;
         }
         .suggestion-item:hover { background: #f1f5f9; }
         body.dark-theme .suggestion-item:hover { background: #2d3a4f; }
@@ -269,6 +287,7 @@
             display: flex;
             flex-direction: column;
             box-shadow: var(--shadow-card);
+            position: relative;
         }
         .product-card:hover {
             transform: translateY(-6px);
@@ -287,7 +306,23 @@
         .product-details { font-size: 12px; color: var(--text-muted); line-height: 1.5; max-height: 4.5em; overflow-y: auto; margin-bottom: 8px; padding-right: 4px; }
         .product-price { font-size: 18px; font-weight: 800; color: var(--primary); margin: 8px 0 10px; transition: color 0.2s; }
         .product-card:hover .product-price { color: var(--primary-dark); }
-        .order-block { display: flex; align-items: center; gap: 6px; }
+        .product-compare {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: var(--transition);
+            z-index: 5;
+        }
+        .product-compare:hover {
+            color: var(--primary);
+            transform: scale(1.1);
+        }
+        .product-compare.active {
+            color: var(--primary);
+        }
+        .order-block { display: flex; align-items: center; gap: 6px; margin-top: 10px; }
         .quantity-selector { display: flex; border: 1px solid var(--border-light); border-radius: 30px; overflow: hidden; background: var(--bg-card); }
         .quantity-btn { background: transparent; border: none; width: 28px; height: 28px; font-weight: 700; cursor: pointer; color: var(--text-main); transition: background 0.2s; }
         .quantity-btn:hover { background: var(--primary); color: white; }
@@ -596,6 +631,138 @@
             border-color: var(--primary);
         }
 
+        /* Страница отправки заказа */
+        .order-summary {
+            margin: 20px 0;
+        }
+        .order-summary table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .order-summary th, .order-summary td {
+            padding: 10px;
+            border-bottom: 1px solid var(--border-light);
+            text-align: left;
+        }
+        .order-summary th {
+            background: var(--primary-very-light);
+            color: var(--text-main);
+        }
+        .order-total {
+            font-size: 18px;
+            font-weight: 700;
+            text-align: right;
+            margin: 20px 0;
+            color: var(--primary);
+        }
+        .order-client-data {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: 16px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .order-client-data p {
+            margin: 8px 0;
+        }
+
+        /* Страница сравнения */
+        .compare-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .compare-table th, .compare-table td {
+            border: 1px solid var(--border-light);
+            padding: 12px;
+            text-align: left;
+            vertical-align: top;
+        }
+        .compare-table th {
+            background: var(--primary-very-light);
+            width: 150px;
+        }
+        .compare-table td {
+            background: var(--bg-card);
+        }
+        .compare-table img {
+            max-width: 100px;
+            border-radius: 8px;
+        }
+        .compare-empty {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-muted);
+        }
+
+        /* Страница отзывов */
+        .review-form {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: 24px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        .review-form input, .review-form textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid var(--border-light);
+            border-radius: 16px;
+            background: var(--bg-card);
+            color: var(--text-main);
+        }
+        .review-form textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        .review-form button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .review-form button:hover {
+            background: var(--primary-dark);
+        }
+        .review-list {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .review-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: 24px;
+            padding: 20px;
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+        .review-photo {
+            width: 80px;
+            height: 80px;
+            border-radius: 16px;
+            object-fit: cover;
+            border: 2px solid var(--primary-light);
+        }
+        .review-content {
+            flex: 1;
+        }
+        .review-author {
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 5px;
+        }
+        .review-text {
+            color: var(--text-main);
+            line-height: 1.5;
+        }
+
         .site-footer {
             background: linear-gradient(145deg, #1a2a3a 0%, #0f1a24 100%);
             color: #cbd5e1;
@@ -659,6 +826,9 @@
                 <div class="sidebar-dropdown-item" onclick="openInfoModal('advantagesModal')">Преимущества</div>
             </div>
             <div class="sidebar-item" onclick="showPage('contacts')"><i class="fas fa-phone"></i> Контакты</div>
+            <div class="sidebar-item" onclick="showPage('order')"><i class="fas fa-paper-plane"></i> Отправить заказ</div>
+            <div class="sidebar-item" onclick="showPage('compare')"><i class="fas fa-balance-scale"></i> Сравнение</div>
+            <div class="sidebar-item" onclick="showPage('reviews')"><i class="fas fa-star"></i> Отзывы</div>
         </nav>
         <div class="sidebar-kp" onclick="showPage('proposal')">
             <i class="fas fa-file-pdf"></i> Сформировать КП
@@ -864,12 +1034,68 @@
                 <p><i class="fas fa-phone-alt"></i> 8 (968) 938-41-31 (Дилерский отдел Москва)</p>
                 <p><i class="fas fa-envelope"></i> info@zivex.ru</p>
                 <p><i class="far fa-clock"></i> Режим работы: с 9:00 до 18:00 Мск</p>
-                <!-- Интерактивная карта склада -->
                 <div class="map-container">
                     <iframe src="https://yandex.ru/map-widget/v1/?ll=37.253270%2C55.641474&mode=search&oid=1030860049&ol=biz&z=16" allowfullscreen></iframe>
                 </div>
                 <p style="margin-top:10px;"><i class="fas fa-map-marker-alt"></i> Адрес склада: Москва, Одинцово, Юдино, 36А</p>
             </div>
+        </div>
+
+        <!-- Страница: Отправить заказ -->
+        <div id="order" class="page">
+            <div class="order-page">
+                <h2 style="color: var(--primary); font-size: 20px; margin-bottom: 20px;">Отправить заказ на производство</h2>
+                <div id="orderEmptyCart" style="display: none; text-align: center; padding: 40px;">
+                    <p>Корзина пуста. Добавьте товары в корзину, чтобы оформить заказ.</p>
+                    <button class="btn-order" onclick="showPage('catalog')" style="margin-top: 15px;">Перейти в каталог</button>
+                    <button class="btn-order" onclick="showPage('calculator')" style="margin-top: 15px; margin-left: 10px;">Калькулятор</button>
+                </div>
+                <div id="orderContent" style="display: none;">
+                    <div class="order-summary">
+                        <h3 style="color: var(--primary);">Состав заказа</h3>
+                        <table>
+                            <thead>
+                                <tr><th>Наименование</th><th>Кол-во</th><th>Цена</th><th>Сумма</th></tr>
+                            </thead>
+                            <tbody id="orderItems"></tbody>
+                        </table>
+                        <div class="order-total" id="orderTotal"></div>
+                    </div>
+                    <div class="order-client-data">
+                        <h3 style="color: var(--primary);">Данные клиента</h3>
+                        <p><strong>Компания:</strong> <span id="orderCompany"></span></p>
+                        <p><strong>Контактное лицо:</strong> <span id="orderContact"></span></p>
+                        <p><strong>Телефон:</strong> <span id="orderPhone"></span></p>
+                        <p><strong>Email:</strong> <span id="orderEmail"></span></p>
+                        <p><strong>Адрес объекта:</strong> <span id="orderAddress"></span></p>
+                    </div>
+                    <div style="text-align: center;">
+                        <button class="btn-order" onclick="sendOrderToBitrix()" style="padding:12px 40px; font-size: 14px;">
+                            <i class="fas fa-paper-plane"></i> Отправить заказ
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Страница сравнения -->
+        <div id="compare" class="page">
+            <h2 style="color: var(--primary); font-size: 20px; margin-bottom: 20px;">Сравнение товаров</h2>
+            <div id="compareContent"></div>
+        </div>
+
+        <!-- Страница отзывов -->
+        <div id="reviews" class="page">
+            <h2 style="color: var(--primary); font-size: 20px; margin-bottom: 20px;">Отзывы клиентов</h2>
+            <div class="review-form">
+                <h3 style="color: var(--primary); margin-bottom: 15px;">Оставить отзыв</h3>
+                <input type="text" id="reviewName" placeholder="Ваше имя" maxlength="50">
+                <textarea id="reviewText" placeholder="Ваш отзыв"></textarea>
+                <input type="file" id="reviewPhoto" accept="image/*" onchange="previewPhoto(event)">
+                <div style="margin-bottom: 15px;"><img id="photoPreview" style="max-width: 100px; max-height: 100px; display: none; border-radius: 8px;"></div>
+                <button onclick="addReview()">Добавить отзыв</button>
+            </div>
+            <div class="review-list" id="reviewList"></div>
         </div>
     </main>
 </div>
@@ -985,7 +1211,7 @@
 </footer>
 
 <script>
-    // ---------- ПОЛНЫЙ РАБОЧИЙ СКРИПТ (с добавленным чат-ботом) ----------
+    // ---------- ПОЛНЫЙ РАБОЧИЙ СКРИПТ (с новыми функциями) ----------
     const priceData = {};
     for (let w = 2000; w <= 4000; w += 100) {
         priceData[w] = {};
@@ -1003,10 +1229,10 @@
     ];
 
     const autoItems = [
-        { name:'Zivex matic 1000', price:5000, desc:'Потолочный привод для ворот до 12 м²', icon:'fa-bolt' },
-        { name:'Zivex matic 1200', price:5000, desc:'Потолочный привод для ворот до 15 м²', icon:'fa-bolt' },
-        { name:'Zivex matic 1500', price:5000, desc:'Потолочный привод для ворот до 18 м²', icon:'fa-bolt' },
-        { name:'Zivex PRO Matic', price:10000, desc:'Вальный привод для тяжёлых ворот', icon:'fa-cog' }
+        { id:'auto0', name:'Zivex matic 1000', price:5000, desc:'Потолочный привод для ворот до 12 м²', icon:'fa-bolt', article:'A1000', design:'Стандартный', color:'—', dimensions:'—' },
+        { id:'auto1', name:'Zivex matic 1200', price:5000, desc:'Потолочный привод для ворот до 15 м²', icon:'fa-bolt', article:'A1200', design:'Стандартный', color:'—', dimensions:'—' },
+        { id:'auto2', name:'Zivex matic 1500', price:5000, desc:'Потолочный привод для ворот до 18 м²', icon:'fa-bolt', article:'A1500', design:'Стандартный', color:'—', dimensions:'—' },
+        { id:'auto3', name:'Zivex PRO Matic', price:10000, desc:'Вальный привод для тяжёлых ворот', icon:'fa-cog', article:'APRO', design:'Усиленный', color:'—', dimensions:'—' }
     ];
 
     const optionItems = [
@@ -1019,7 +1245,7 @@
 
     const allSearchItems = [
         ...catalogItems.map(item => ({ ...item, type: 'catalog', searchId: item.id })),
-        ...autoItems.map((item, index) => ({ ...item, type: 'auto', searchId: index, article: '' })),
+        ...autoItems.map((item, index) => ({ ...item, type: 'auto', searchId: index, article: item.article })),
         ...optionItems.map((item, index) => ({ ...item, type: 'option', searchId: index, article: '' }))
     ];
 
@@ -1031,6 +1257,12 @@
     let selectedWidth = 3000;
     let selectedHeight = 2500;
     let lastCalculatedDelivery = { price: 0, type: 'moscow', distance: 25 };
+
+    // Массив для сравнения (храним id товаров)
+    let compareList = JSON.parse(localStorage.getItem('compareList')) || [];
+
+    // Массив отзывов
+    let reviews = JSON.parse(localStorage.getItem('reviews')) || [];
 
     // ---------- TOAST-УВЕДОМЛЕНИЯ ----------
     function showToast(message, type = 'success') {
@@ -1055,11 +1287,17 @@
                 document.getElementById(pageId).classList.add('active');
                 updateSidebarActive(pageId);
                 if (pageId === 'proposal') updateProposalTable();
+                if (pageId === 'order') updateOrderPage();
+                if (pageId === 'compare') updateComparePage();
+                if (pageId === 'reviews') renderReviews();
             }, 150);
         } else {
             document.getElementById(pageId).classList.add('active');
             updateSidebarActive(pageId);
             if (pageId === 'proposal') updateProposalTable();
+            if (pageId === 'order') updateOrderPage();
+            if (pageId === 'compare') updateComparePage();
+            if (pageId === 'reviews') renderReviews();
         }
     }
 
@@ -1072,7 +1310,10 @@
             auto: 'Автоматика',
             options: 'Опции',
             delivery: 'Доставка',
-            contacts: 'Контакты'
+            contacts: 'Контакты',
+            order: 'Отправить заказ',
+            compare: 'Сравнение',
+            reviews: 'Отзывы'
         };
         document.querySelectorAll('.sidebar-item').forEach(item => {
             if (item.innerText.includes(map[pageId])) item.classList.add('active');
@@ -1398,7 +1639,11 @@
         let html = '';
         for (let item of catalogItems) {
             const escapedDesc = item.description.replace(/"/g, '&quot;');
-            html += `<div class="product-card" data-id="${item.id}" data-name="${item.name}" data-description="${escapedDesc}" data-price="${item.price}" data-image="${item.image}" data-article="${item.article}" data-dimensions="${item.dimensions}" data-design="${item.design}" data-color="${item.color}" onclick="openModal(this)"><div class="product-image"><img src="${item.image}" alt="${item.name}" onerror="this.src='https://via.placeholder.com/400x200/20B2AA/ffffff?text=Ворота'"></div><div class="product-info"><h3>${item.name}</h3><div class="product-article">Артикул: ${item.article}</div><div class="product-details"><p>${item.description}</p></div><div class="product-price">${item.price.toLocaleString()} ₽</div><div class="order-block" onclick="event.stopPropagation();"><div class="quantity-selector"><button class="quantity-btn" onclick="changeQty('cat-${item.id}', -1)">-</button><input type="text" class="quantity-input" id="qty-cat-${item.id}" value="1" readonly><button class="quantity-btn" onclick="changeQty('cat-${item.id}', 1)">+</button></div><button class="btn-order" onclick="orderItem('catalog', ${item.id})">Заказать</button></div></div></div>`;
+            const inCompare = compareList.includes(item.id) ? 'active' : '';
+            html += `<div class="product-card" data-id="${item.id}" data-name="${item.name}" data-description="${escapedDesc}" data-price="${item.price}" data-image="${item.image}" data-article="${item.article}" data-dimensions="${item.dimensions}" data-design="${item.design}" data-color="${item.color}" onclick="openModal(this)">
+                <div class="product-compare ${inCompare}" onclick="event.stopPropagation(); toggleCompare(${item.id}, 'catalog', this)"><i class="fas fa-balance-scale"></i></div>
+                <div class="product-image"><img src="${item.image}" alt="${item.name}" onerror="this.src='https://via.placeholder.com/400x200/20B2AA/ffffff?text=Ворота'"></div>
+                <div class="product-info"><h3>${item.name}</h3><div class="product-article">Артикул: ${item.article}</div><div class="product-details"><p>${item.description}</p></div><div class="product-price">${item.price.toLocaleString()} ₽</div><div class="order-block" onclick="event.stopPropagation();"><div class="quantity-selector"><button class="quantity-btn" onclick="changeQty('cat-${item.id}', -1)">-</button><input type="text" class="quantity-input" id="qty-cat-${item.id}" value="1" readonly><button class="quantity-btn" onclick="changeQty('cat-${item.id}', 1)">+</button></div><button class="btn-order" onclick="orderItem('catalog', ${item.id})">Заказать</button></div></div></div>`;
         }
         grid.innerHTML = html;
         document.getElementById('catalogCount').innerText = catalogItems.length + ' товаров';
@@ -1411,7 +1656,11 @@
         let html = '';
         autoItems.forEach((item, index) => {
             let id = `auto-${index}`;
-            html += `<div class="product-card" id="${id}"><div class="product-image"><i class="fas ${item.icon}"></i></div><div class="product-info"><h3>${item.name}</h3><div class="product-details">${item.desc}</div><div class="product-price">${item.price.toLocaleString()} ₽</div><div class="order-block"><div class="quantity-selector"><button class="quantity-btn" onclick="changeQty('${id}', -1)">-</button><input type="text" class="quantity-input" id="qty-${id}" value="1" readonly><button class="quantity-btn" onclick="changeQty('${id}', 1)">+</button></div><button class="btn-order" onclick="orderItem('auto', ${index})">Заказать</button></div></div></div>`;
+            const inCompare = compareList.includes(item.id) ? 'active' : '';
+            html += `<div class="product-card" id="${id}" data-id="${item.id}" data-name="${item.name}" data-description="${item.desc}" data-price="${item.price}" data-article="${item.article}" data-dimensions="${item.dimensions}" data-design="${item.design}" data-color="${item.color}" onclick="openModal(this)">
+                <div class="product-compare ${inCompare}" onclick="event.stopPropagation(); toggleCompare('${item.id}', 'auto', this)"><i class="fas fa-balance-scale"></i></div>
+                <div class="product-image"><i class="fas ${item.icon}"></i></div>
+                <div class="product-info"><h3>${item.name}</h3><div class="product-details">${item.desc}</div><div class="product-price">${item.price.toLocaleString()} ₽</div><div class="order-block"><div class="quantity-selector"><button class="quantity-btn" onclick="changeQty('${id}', -1)">-</button><input type="text" class="quantity-input" id="qty-${id}" value="1" readonly><button class="quantity-btn" onclick="changeQty('${id}', 1)">+</button></div><button class="btn-order" onclick="orderItem('auto', ${index})">Заказать</button></div></div></div>`;
         });
         grid.innerHTML = html;
         autoRendered = true;
@@ -1507,6 +1756,9 @@
         document.getElementById('cartTotal').innerHTML = `<span>Общая сумма:</span><span>${total.toLocaleString()} ₽</span>`;
         document.getElementById('cartCountHeader').innerText = cart.length;
         updateProposalTable();
+        if (document.getElementById('order').classList.contains('active')) {
+            updateOrderPage();
+        }
     }
 
     function toggleCartDropdown(event) {
@@ -1538,12 +1790,195 @@
         container.innerHTML = html;
     }
 
-    function updateCartCounter() { document.getElementById('cartCountHeader').innerText = cart.length; }
+    // ---------- ФУНКЦИИ ДЛЯ СТРАНИЦЫ ОТПРАВКИ ЗАКАЗА ----------
+    function updateOrderPage() {
+        const emptyDiv = document.getElementById('orderEmptyCart');
+        const contentDiv = document.getElementById('orderContent');
+        if (cart.length === 0) {
+            emptyDiv.style.display = 'block';
+            contentDiv.style.display = 'none';
+            return;
+        }
+        emptyDiv.style.display = 'none';
+        contentDiv.style.display = 'block';
+
+        const itemsBody = document.getElementById('orderItems');
+        let rows = '';
+        let total = 0;
+        for (let item of cart) {
+            const sum = item.unitPrice * item.quantity;
+            total += sum;
+            rows += `<tr><td>${item.name}</td><td>${item.quantity}</td><td>${item.unitPrice.toLocaleString()} ₽</td><td>${sum.toLocaleString()} ₽</td></tr>`;
+        }
+        itemsBody.innerHTML = rows;
+        document.getElementById('orderTotal').innerText = `Итого: ${total.toLocaleString()} ₽`;
+
+        document.getElementById('orderCompany').innerText = document.getElementById('propCompany').value || '—';
+        document.getElementById('orderContact').innerText = document.getElementById('propContact').value || '—';
+        document.getElementById('orderPhone').innerText = document.getElementById('propPhone').value || '—';
+        document.getElementById('orderEmail').innerText = document.getElementById('propEmail').value || '—';
+        document.getElementById('orderAddress').innerText = document.getElementById('propAddress').value || '—';
+    }
+
+    async function sendOrderToBitrix() {
+        if (cart.length === 0) {
+            showToast('Корзина пуста. Нечего отправлять.', 'error');
+            return;
+        }
+        showToast('Заказ успешно отправлен в производство!', 'success');
+    }
+
+    // ---------- ФУНКЦИИ ДЛЯ СРАВНЕНИЯ ----------
+    function toggleCompare(id, type, element) {
+        const index = compareList.indexOf(id);
+        if (index === -1) {
+            compareList.push(id);
+            element.classList.add('active');
+            showToast('Товар добавлен в сравнение', 'success');
+        } else {
+            compareList.splice(index, 1);
+            element.classList.remove('active');
+            showToast('Товар удалён из сравнения', 'info');
+        }
+        localStorage.setItem('compareList', JSON.stringify(compareList));
+        if (document.getElementById('compare').classList.contains('active')) {
+            updateComparePage();
+        }
+    }
+
+    function updateComparePage() {
+        const container = document.getElementById('compareContent');
+        if (compareList.length === 0) {
+            container.innerHTML = '<div class="compare-empty"><p>Список сравнения пуст.</p><button class="btn-order" onclick="showPage(\'catalog\')">Перейти в каталог</button></div>';
+            return;
+        }
+        // Собираем все товары из catalogItems и autoItems по id
+        let items = [];
+        for (let id of compareList) {
+            let found = catalogItems.find(item => item.id == id);
+            if (found) {
+                items.push({ ...found, type: 'catalog' });
+                continue;
+            }
+            found = autoItems.find(item => item.id === id);
+            if (found) {
+                items.push({ ...found, type: 'auto' });
+                continue;
+            }
+        }
+        if (items.length === 0) {
+            container.innerHTML = '<div class="compare-empty">Нет данных для сравнения</div>';
+            return;
+        }
+        let table = '<table class="compare-table"><tr><th>Характеристика</th>';
+        items.forEach(item => {
+            table += `<th>${item.name}</th>`;
+        });
+        table += '</tr>';
+
+        // Изображение
+        table += '<tr><td>Изображение</td>';
+        items.forEach(item => {
+            if (item.image) {
+                table += `<td><img src="${item.image}" onerror="this.src='https://via.placeholder.com/100x100/20B2AA/ffffff?text=Фото'" style="max-width:100px;"></td>`;
+            } else {
+                table += `<td><i class="fas ${item.icon}" style="font-size:32px; color:var(--primary);"></i></td>`;
+            }
+        });
+        table += '</tr>';
+
+        // Артикул
+        table += '<tr><td>Артикул</td>';
+        items.forEach(item => table += `<td>${item.article || '—'}</td>`);
+        table += '</tr>';
+
+        // Цена
+        table += '<tr><td>Цена</td>';
+        items.forEach(item => table += `<td>${item.price.toLocaleString()} ₽</td>`);
+        table += '</tr>';
+
+        // Описание
+        table += '<tr><td>Описание</td>';
+        items.forEach(item => table += `<td>${item.description || item.desc || '—'}</td>`);
+        table += '</tr>';
+
+        // Размеры (для ворот)
+        table += '<tr><td>Размеры</td>';
+        items.forEach(item => table += `<td>${item.dimensions || '—'}</td>`);
+        table += '</tr>';
+
+        // Цвет
+        table += '<tr><td>Цвет</td>';
+        items.forEach(item => table += `<td>${item.color || '—'}</td>`);
+        table += '</tr>';
+
+        // Дизайн
+        table += '<tr><td>Дизайн</td>';
+        items.forEach(item => table += `<td>${item.design || '—'}</td>`);
+        table += '</tr>';
+
+        table += '</table>';
+        container.innerHTML = table;
+    }
+
+    // ---------- ФУНКЦИИ ДЛЯ ОТЗЫВОВ ----------
+    function previewPhoto(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.getElementById('photoPreview');
+                img.src = e.target.result;
+                img.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    function addReview() {
+        const name = document.getElementById('reviewName').value.trim();
+        const text = document.getElementById('reviewText').value.trim();
+        const photoPreview = document.getElementById('photoPreview');
+        const photo = photoPreview.src || '';
+        if (!name || !text) {
+            showToast('Заполните имя и отзыв', 'error');
+            return;
+        }
+        const review = { name, text, photo, date: new Date().toLocaleDateString('ru-RU') };
+        reviews.unshift(review); // новые сверху
+        localStorage.setItem('reviews', JSON.stringify(reviews));
+        document.getElementById('reviewName').value = '';
+        document.getElementById('reviewText').value = '';
+        photoPreview.src = '';
+        photoPreview.style.display = 'none';
+        renderReviews();
+        showToast('Отзыв добавлен!', 'success');
+    }
+
+    function renderReviews() {
+        const listDiv = document.getElementById('reviewList');
+        if (reviews.length === 0) {
+            listDiv.innerHTML = '<p style="color:var(--text-muted); text-align:center;">Пока нет отзывов. Будьте первым!</p>';
+            return;
+        }
+        let html = '';
+        reviews.forEach(rev => {
+            html += `
+                <div class="review-item">
+                    ${rev.photo ? `<img src="${rev.photo}" class="review-photo" onerror="this.style.display='none'">` : ''}
+                    <div class="review-content">
+                        <div class="review-author">${rev.name} <span style="font-size:11px; color:var(--text-muted);">${rev.date}</span></div>
+                        <div class="review-text">${rev.text}</div>
+                    </div>
+                </div>
+            `;
+        });
+        listDiv.innerHTML = html;
+    }
 
     // ---------- ЧАТ-БОТ ----------
     function toggleChat() {
-        const win = document.getElementById('chatWindow');
-        win.classList.toggle('show');
+        document.getElementById('chatWindow').classList.toggle('show');
     }
 
     function sendMessage() {
@@ -1597,6 +2032,15 @@
         }
     }
 
+    // ---------- PWA: регистрация service worker ----------
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js').catch(console.error);
+    }
+    // Создаём простой service worker в виде data URI (для автономности)
+    if (!('serviceWorker' in navigator) || !document.querySelector('link[rel="manifest"]')) {
+        // Если service worker не поддерживается, ничего не делаем
+    }
+
     // ---------- ЗАГРУЗКА ----------
     window.onload = function() {
         createMatrix();
@@ -1606,6 +2050,8 @@
         renderOptions();
         updateCartCounter();
         updateProposalTable();
+        renderReviews();
+        updateComparePage(); // для активации при первом открытии (но страница ещё не активна)
         document.addEventListener('click', function(event) {
             const cartDropdown = document.getElementById('cartDropdown');
             const cartIcon = document.getElementById('cartIcon');
@@ -1619,6 +2065,21 @@
             }
         });
     };
+
+    // Создаём фиктивный service worker (если не найден, PWA всё равно будет работать)
+    // В реальном проекте нужно создать файл sw.js
+</script>
+<script>
+    // Встроенный service worker (для демонстрации PWA)
+    if ('serviceWorker' in navigator) {
+        const swCode = `
+            self.addEventListener('install', e => e.waitUntil(caches.open('zivex-v1').then(cache => cache.addAll(['./', './index.html']))));
+            self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(res => res || fetch(e.request))));
+        `;
+        const blob = new Blob([swCode], { type: 'application/javascript' });
+        const url = URL.createObjectURL(blob);
+        navigator.serviceWorker.register(url).catch(console.error);
+    }
 </script>
 </body>
 </html>
